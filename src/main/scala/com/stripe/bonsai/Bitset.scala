@@ -4,16 +4,25 @@ import scala.annotation.switch
 import scala.collection.immutable.BitSet
 import scala.collection.mutable.{ Builder, ArrayBuilder }
 
-final class Bonsai(
+/**
+ * A data structure for storing bitsets, with O(1) rank and O(polylog n) select
+ * operations.
+ */
+final class Bitset(
   val bits: Array[Int],
   val len: Int,
   val level2Start: Int,
   val rawBitsStart: Int
 ) {
-  import Bonsai.{ ceilDiv, rankWord }
+  import Bitset.{ ceilDiv, rankWord }
 
-  def bruteForceRank(i: Int): Int =
-    toSeq.take(i + 1).filter(n => n).size
+  def apply(i: Int): Boolean = {
+    val offset = rawBitsStart + i
+    val wordOffset = offset >>> 5
+    val bitOffset = offset & 0x1F
+    val word = bits(wordOffset)
+    ((word >>> bitOffset) & 1) != 0
+  }
 
   def toBitSet: BitSet =
     BitSet(toSeq.zipWithIndex.collect { case (true, n) => n }: _*)
@@ -49,15 +58,15 @@ final class Bonsai(
     toSeq
       .map { x => if (x) "0" else "1" }
       .reverse
-      .mkString("Bonsai(", "", ")")
+      .mkString("Bitset(", "", ")")
 }
 
-object Bonsai {
-  def newBuilder: BonsaiBuilder = new BonsaiBuilder
+object Bitset {
+  def newBuilder: BitsetBuilder = new BitsetBuilder
 
-  val empty: Bonsai = new Bonsai(new Array[Int](0), 0, 0, 0)
+  val empty: Bitset = new Bitset(new Array[Int](0), 0, 0, 0)
 
-  def fromBitSet(bitSet: BitSet): Bonsai = {
+  def fromBitSet(bitSet: BitSet): Bitset = {
     if (bitSet.isEmpty) {
       empty
     } else {
@@ -78,8 +87,8 @@ object Bonsai {
     ((n.toLong + d - 1) / d).toInt
 }
 
-class BonsaiBuilder extends Builder[Boolean, Bonsai] {
-  import Bonsai.ceilDiv
+class BitsetBuilder extends Builder[Boolean, Bitset] {
+  import Bitset.ceilDiv
 
   var cnt = 0
   var k = 0
@@ -135,7 +144,7 @@ class BonsaiBuilder extends Builder[Boolean, Bonsai] {
     val rawBitsStart = if (j % 3 != 0) i + 1 else i
     Array.copy(rawBits, 0, bitString, rawBitsStart, rawBits.length)
 
-    new Bonsai(bitString, cnt, rawLvl1.length, rawBitsStart)
+    new Bitset(bitString, cnt, rawLvl1.length, rawBitsStart)
   }
 
   def +=(x: Boolean) = {
