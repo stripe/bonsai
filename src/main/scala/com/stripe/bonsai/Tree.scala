@@ -9,6 +9,11 @@ import scala.collection.mutable.ArrayBuilder
  * A succinct data structure for representing k-ary trees with arbitrary data
  * attached to each node.
  *
+ * In general, you can expect that for reasonably large `Tree`s will require
+ * ~2.73bits per node to store the *structure* of the tree. The structure of
+ * the tree includes just the parent/child relationships. There is no
+ * compression done on the data itself (yet)!
+ *
  * @param bitset the underlying bitset that supports fast rank/select
  * @param data   the data associated with each node, indexed by its label
  */

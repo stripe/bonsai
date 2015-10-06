@@ -6,7 +6,8 @@ import scala.collection.mutable.{ Builder, ArrayBuilder }
 
 /**
  * A data structure for storing bitsets, with O(1) rank and O(polylog n) select
- * operations.
+ * operations. To support fast rank queries, this bitset requires ~1.37n bits,
+ * rather than the n bits that, eg, Scala's `BitSet` uses.
  */
 final class Bitset(
   val bits: Array[Int],
