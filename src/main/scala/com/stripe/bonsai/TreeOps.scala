@@ -82,16 +82,16 @@ object TreeOps {
     type Data = D
   }
 
-  trait WithDataClassTag[T] {
+  trait WithLayout[T] {
     implicit val treeOps: TreeOps[T]
-    implicit val classTag: ClassTag[treeOps.Data]
+    implicit val layout: Layout[treeOps.Data]
   }
 
-  object WithDataClassTag {
-    implicit def WithDataClassTag[T, N, D](implicit ops: Aux[T, N, D], ct: ClassTag[D]): WithDataClassTag[T] =
-      new WithDataClassTag[T] {
+  object WithLayout {
+    implicit def mkWithLayout[T, N, D](implicit ops: Aux[T, N, D], lt: Layout[D]): WithLayout[T] =
+      new WithLayout[T] {
         val treeOps = ops
-        val classTag = ct
+        val layout = lt
       }
   }
 }

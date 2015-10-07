@@ -1,6 +1,8 @@
 package com.stripe.bonsai
 package layout
 
+import scala.language.higherKinds
+
 import scala.collection.mutable.{ ArrayBuilder, Builder }
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag

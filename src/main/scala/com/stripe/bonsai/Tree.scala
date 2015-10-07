@@ -5,6 +5,8 @@ import scala.reflect.ClassTag
 import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuilder
 
+import com.stripe.bonsai.layout.Vec
+
 /**
  * A succinct data structure for representing k-ary trees with arbitrary data
  * attached to each node.
@@ -17,7 +19,7 @@ import scala.collection.mutable.ArrayBuilder
  * @param bitset the underlying bitset that supports fast rank/select
  * @param data   the data associated with each node, indexed by its label
  */
-class Tree[A](val bitset: Bitset, val data: Array[A]) {
+class Tree[A](val bitset: Bitset, val data: Vec[A]) {
   import Tree.NodeRef
 
   private def mkNodeRef(index: Int): Option[NodeRef[A]] =
@@ -56,8 +58,8 @@ object Tree {
   /**
    * Returns an empty, 0-node bonsai `Tree`.
    */
-  def empty[A: ClassTag]: Tree[A] =
-    new Tree(Bitset.empty, Array.empty[A])
+  def empty[A: Layout]: Tree[A] =
+    new Tree(Bitset.empty, Layout[A].empty)
 
   /**
    * Constructs a bonsai `Tree` from some other arbitrary tree structure. The 2
@@ -66,7 +68,7 @@ object Tree {
    *
    * @param tree the tree whose structure we are copying
    */
-  def apply[T](tree: T)(implicit ev: TreeOps.WithDataClassTag[T]): Tree[ev.treeOps.Data] = {
+  def apply[T](tree: T)(implicit ev: TreeOps.WithLayout[T]): Tree[ev.treeOps.Data] = {
     import ev._
     import treeOps._
 
@@ -131,7 +133,7 @@ object Tree {
     }
 
     val bitsBldr = Bitset.newBuilder
-    val dataBldr = ArrayBuilder.make[Data]()
+    val dataBldr = Layout[Data].newBuilder
 
     // We build the datastructure in this loop. We traverse the transformed
     // tree in level-order (breadth-first search). Each internal node is marked

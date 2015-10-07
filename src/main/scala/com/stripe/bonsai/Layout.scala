@@ -1,10 +1,14 @@
 package com.stripe.bonsai
 
+import scala.language.implicitConversions
+
 import scala.reflect.ClassTag
 
 import com.stripe.bonsai.layout._
 
 trait Layout[A] {
+  def empty: Vec[A] = newBuilder.result()
+
   def newBuilder: VecBuilder[A]
 
   def zip[B](that: Layout[B]): Layout[(A, B)] = Layout.join(this, that)
@@ -18,7 +22,9 @@ trait LayoutLow {
   implicit def denseVector[A] = new DenseIndexedSeqLayout[Vector, A]
 }
 
-object Layout {
+object Layout extends LayoutLow {
+  def apply[A](implicit layout: Layout[A]): Layout[A] = layout
+
   implicit def optional[A](layout: Layout[A]): Layout[Option[A]] = new OptionalLayout(layout)
 
   implicit def denseArray[A: ClassTag] = new DenseArrayLayout[A]
