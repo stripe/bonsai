@@ -1,5 +1,7 @@
 *.class
 *.log
+*.swp
+tags
 
 # sbt specific
 .cache
