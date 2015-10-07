@@ -11,7 +11,7 @@ import scala.collection.mutable.{ Builder, ArrayBuilder }
  */
 final class Bitset(
   val bits: Array[Int],
-  val len: Int,
+  val length: Int,
   val level2Start: Int,
   val rawBitsStart: Int
 ) {
@@ -29,8 +29,8 @@ final class Bitset(
     BitSet(toSeq.zipWithIndex.collect { case (true, n) => n }: _*)
 
   def rank(i: Int): Int = {
-    if (i >= len) {
-      rank(len - 1)
+    if (i >= length) {
+      rank(length - 1)
     } else {
       val rank1 = bits(i >>> 10)
 
@@ -47,7 +47,7 @@ final class Bitset(
   }
 
   def toSeq: Seq[Boolean] =
-    (0 until len)
+    (0 until length)
       .map { i =>
         val word = bits(rawBitsStart + (i >>> 5))
         val offset = i & 0x1F
