@@ -13,13 +13,12 @@ import com.stripe.bonsai.layout.Vec
  *
  * In general, you can expect that for reasonably large `Tree`s will require
  * ~2.73bits per node to store the *structure* of the tree. The structure of
- * the tree includes just the parent/child relationships. There is no
- * compression done on the data itself (yet)!
+ * the tree includes just the parent/child relationships.
  *
  * @param bitset the underlying bitset that supports fast rank/select
- * @param data   the data associated with each node, indexed by its label
+ * @param labels the label associated with each node, indexed by its label
  */
-class Tree[A](val bitset: Bitset, val data: Vec[A]) {
+class Tree[A](val bitset: Bitset, val labels: Vec[A]) {
   import Tree.NodeRef
 
   private def mkNodeRef(index: Int): Option[NodeRef[A]] =
@@ -38,21 +37,21 @@ class Tree[A](val bitset: Bitset, val data: Vec[A]) {
   // Private?
 
   def firstChild(node: NodeRef[A]): Option[NodeRef[A]] =
-    mkNodeRef(2 * node.label - 1)
+    mkNodeRef(2 * node.index - 1)
 
   def nextSibling(node: NodeRef[A]): Option[NodeRef[A]] =
-    mkNodeRef(2 * node.label)
+    mkNodeRef(2 * node.index)
 }
 
 object Tree {
   implicit def BonsaiTreeOps[A]: TreeOps[Tree[A]] =
     new TreeOps[Tree[A]] {
       type Node = NodeRef[A]
-      type Data = A
+      type Label = A
 
       def root(t: Tree[A]): Option[Node] = t.root
       def children(node: Node): Iterable[Node] = node
-      def data(node: Node): Data = node.data
+      def label(node: Node): Label = node.label
     }
 
   /**
@@ -68,7 +67,7 @@ object Tree {
    *
    * @param tree the tree whose structure we are copying
    */
-  def apply[T](tree: T)(implicit ev: TreeOps.WithLayout[T]): Tree[ev.treeOps.Data] = {
+  def apply[T](tree: T)(implicit ev: TreeOps.WithLayout[T]): Tree[ev.treeOps.Label] = {
     import ev._
     import treeOps._
 
@@ -133,7 +132,7 @@ object Tree {
     }
 
     val bitsBldr = Bitset.newBuilder
-    val dataBldr = Layout[Data].newBuilder
+    val labelBldr = Layout[Label].newBuilder
 
     // We build the datastructure in this loop. We traverse the transformed
     // tree in level-order (breadth-first search). Each internal node is marked
@@ -147,7 +146,7 @@ object Tree {
         nodes.dequeue match {
           case (inode @ InternalNode(node, _), rest) =>
             bitsBldr += true
-            dataBldr += node.data
+            labelBldr += node.label
             build(nodes.enqueue(inode.leftChild).enqueue(inode.rightChild))
 
           case (ExternalNode, rest) =>
@@ -159,7 +158,7 @@ object Tree {
       case Some(node) =>
         // The root node has no siblings (no right child).
         build(Queue(InternalNode(node, Nil)))
-        new Tree(bitsBldr.result(), dataBldr.result())
+        new Tree(bitsBldr.result(), labelBldr.result())
 
       case None =>
         Tree.empty
@@ -169,14 +168,14 @@ object Tree {
   /**
    * A reference to a node in a bonsai `Tree`.
    */
-  final case class NodeRef[@specialized A] private[bonsai] (val tree: Tree[A], val label: Int) extends Iterable[NodeRef[A]] { node =>
-    def data: A = tree.data(label)
+  final case class NodeRef[@specialized A] private[bonsai] (val tree: Tree[A], val index: Int) extends Iterable[NodeRef[A]] { node =>
+    def label: A = tree.labels(index)
 
     // We extend Iterable largely to avoid allocating an extra object in
     // `children`.
     def iterator: Iterator[NodeRef[A]] =
       new Iterator[NodeRef[A]] {
-        // TODO: Just use label directly.
+        // TODO: Just use index directly.
         var child = tree.firstChild(node)
         def hasNext: Boolean = child.isDefined
         def next: NodeRef[A] = {

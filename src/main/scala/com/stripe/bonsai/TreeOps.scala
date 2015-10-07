@@ -5,7 +5,7 @@ import scala.reflect.ClassTag
 /**
  * TreeOps is a type class for abstracting over arbitrary trees, allowing
  * traversal and data access. In general, it assumes that we can quickly access
- * the children and data of any given node.
+ * the children and label of any given node.
  *
  * There are some convenience implicit methods added onto trees and nodes that
  * can be accessed by importing tree ops. For instance, say we wanted to add an
@@ -14,14 +14,14 @@ import scala.reflect.ClassTag
  * {{{
  * implicit class NodeFinder[T](tree: T)(implicit treeOps: TreeOps[T]) {
  * 
- *   // Brings in Node/Data types, and implicit classes.
+ *   // Brings in Node/Label types, and implicit classes.
  *   import treeOps._
  * 
  *   // Returns the first node (DFS) where the predicate is true.
- *   def find(f: Data => Boolean): Option[Node] = {
+ *   def find(f: Label => Boolean): Option[Node] = {
  *     def recur(node: Node): Option[Node] = {
- *       // treeOps.TreeNodeOps brings in the Node#data implicit method.
- *       if (f(node.data)) {
+ *       // treeOps.TreeNodeOps brings in the Node#label implicit method.
+ *       if (f(node.label)) {
  *         node
  *       } else {
  *         // treeOps.TreeNodeOps also brings in Node#children implicit method.
@@ -40,8 +40,8 @@ trait TreeOps[T] { ops =>
   /** The type of the nodes in the tree. */
   type Node
 
-  /** The type of the data attached to each node. */
-  type Data
+  /** The type of the label attached to each node. */
+  type Label
 
   /**
    * Returns the root node of the tree.
@@ -55,36 +55,40 @@ trait TreeOps[T] { ops =>
   def children(node: Node): Iterable[Node]
 
   /**
-   * Returns the data attached to the given node.
+   * Returns the label attached to the given node.
    */
-  def data(node: Node): Data
+  def label(node: Node): Label
+
+  def fold[A](f: (Label, Iterable[A]) => A)(node: Node): A =
+    f(label(node), children(node).map(fold(f)))
 
   implicit class TreeTreeOps(tree: T) {
     def root: Option[Node] = ops.root(tree)
+    def fold[A](f: (Label, Iterable[A]) => A): Option[A] = root.map(ops.fold(f))
   }
 
   implicit class TreeNodeOps(node: Node) {
     def children: Iterable[Node] = ops.children(node)
-    def data: Data = ops.data(node)
+    def label: Label = ops.label(node)
+    def fold[A](f: (Label, Iterable[A]) => A): A = ops.fold(f)(node)
   }
 }
 
 object TreeOps {
 
   /**
-   * A type alias for `TreeOps` that let's you use the `Node` and `Data` types
+   * A type alias for `TreeOps` that let's you use the `Node` and `Label` types
    * with Scala's type inference / implicit lookup. You normally shouldn't need
-   * this, but is invaluable when you do. See [[WithDataClassTag]] for an
-   * example.
+   * this, but is invaluable when you do.
    */
   type Aux[T, N, D] = TreeOps[T] {
     type Node = N
-    type Data = D
+    type Label = D
   }
 
   trait WithLayout[T] {
     implicit val treeOps: TreeOps[T]
-    implicit val layout: Layout[treeOps.Data]
+    implicit val layout: Layout[treeOps.Label]
   }
 
   object WithLayout {

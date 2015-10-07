@@ -10,7 +10,6 @@ case class DisjunctionLayout[A, B, C](
 ) extends Layout[C] {
   def newBuilder: VecBuilder[C] =
     new DisjunctionBuilder[A, B, C](
-      new BitsetBuilder,
       leftLayout.newBuilder,
       rightLayout.newBuilder,
       unpack, mkLeft, mkRight
@@ -18,13 +17,14 @@ case class DisjunctionLayout[A, B, C](
 }
 
 class DisjunctionBuilder[A, B, C](
-  bitsetBldr: BitsetBuilder,
   leftBldr: VecBuilder[A],
   rightBldr: VecBuilder[B],
   unpack: C => Either[A, B],
   mkLeft: A => C,
   mkRight: B => C
 ) extends VecBuilder[C] {
+  val bitsetBldr = new BitsetBuilder
+
   def +=(that: C) = {
     unpack(that) match {
       case Left(a) =>
