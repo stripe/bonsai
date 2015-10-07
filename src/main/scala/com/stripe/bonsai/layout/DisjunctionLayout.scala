@@ -1,7 +1,7 @@
 package com.stripe.bonsai
 package layout
 
-class DisjunctionLayout[A, B, C](
+case class DisjunctionLayout[A, B, C](
   leftLayout: Layout[A],
   rightLayout: Layout[B],
   unpack: C => Either[A, B],

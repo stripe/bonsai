@@ -33,6 +33,6 @@ class OptionalBuilder[A](bldr: VecBuilder[A]) extends VecBuilder[Option[A]] {
 class OptionalVec[A](bitset: Bitset, vec: Vec[A]) extends Vec[Option[A]] {
   def size: Int = bitset.length
   def apply(index: Int): Option[A] =
-    if (bitset(index)) Some(vec(bitset.rank(index)))
+    if (bitset(index)) Some(vec(bitset.rank(index) - 1))
     else None
 }

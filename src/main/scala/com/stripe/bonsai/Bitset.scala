@@ -18,9 +18,8 @@ final class Bitset(
   import Bitset.{ ceilDiv, rankWord }
 
   def apply(i: Int): Boolean = {
-    val offset = rawBitsStart + i
-    val wordOffset = offset >>> 5
-    val bitOffset = offset & 0x1F
+    val wordOffset = rawBitsStart + (i >>> 5)
+    val bitOffset = i & 0x1F
     val word = bits(wordOffset)
     ((word >>> bitOffset) & 1) != 0
   }

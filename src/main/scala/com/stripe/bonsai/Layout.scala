@@ -18,16 +18,18 @@ trait Layout[A] {
   def optional: Layout[Option[A]] = Layout.optional(this)
 }
 
-trait LayoutLow {
+trait LayoutLow1 {
   implicit def denseVector[A] = new DenseIndexedSeqLayout[Vector, A]
 }
 
-object Layout extends LayoutLow {
+trait LayoutLow2 extends LayoutLow1 {
+  implicit def denseArray[A: ClassTag] = new DenseArrayLayout[A]
+}
+
+object Layout extends LayoutLow2 {
   def apply[A](implicit layout: Layout[A]): Layout[A] = layout
 
-  implicit def optional[A](layout: Layout[A]): Layout[Option[A]] = new OptionalLayout(layout)
-
-  implicit def denseArray[A: ClassTag] = new DenseArrayLayout[A]
+  implicit def optional[A](implicit layout: Layout[A]): Layout[Option[A]] = new OptionalLayout(layout)
 
   def transform[A, B](layout: Layout[A])(f: A => B, g: B => A): Layout[B] =
     new TransformedLayout(layout, g, f)
@@ -36,9 +38,9 @@ object Layout extends LayoutLow {
    * Returns a data store that can store either A or B and requires only
    * 1.37n bits additional data (+ O(1) pointers).
    */
-  implicit def either[A, B](lhs: Layout[A], rhs: Layout[B]): Layout[Either[A, B]] =
+  implicit def either[A, B](implicit lhs: Layout[A], rhs: Layout[B]): Layout[Either[A, B]] =
     new DisjunctionLayout[A, B, Either[A, B]](lhs, rhs, identity, Left(_), Right(_))
 
-  implicit def join[A, B](lhs: Layout[A], rhs: Layout[B]): Layout[(A, B)] =
+  implicit def join[A, B](implicit lhs: Layout[A], rhs: Layout[B]): Layout[(A, B)] =
     new ProductLayout[A, B, (A, B)](lhs, rhs, identity, _ -> _)
 }

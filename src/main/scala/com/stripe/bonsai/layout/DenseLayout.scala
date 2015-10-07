@@ -7,14 +7,14 @@ import scala.collection.mutable.{ ArrayBuilder, Builder }
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
 
-class DenseIndexedSeqLayout[CC[A] <: IndexedSeq[A], A](
+case class DenseIndexedSeqLayout[CC[A] <: IndexedSeq[A], A](
   implicit cbf: CanBuildFrom[Nothing, A, CC[A]]
 ) extends Layout[A] {
   def newBuilder =
     new DenseBuilder[A, CC[A]](cbf(), DenseIndexedSeqVec(_))
 }
 
-class DenseArrayLayout[A: ClassTag] {
+case class DenseArrayLayout[A: ClassTag]() extends Layout[A] {
   def newBuilder =
     new DenseBuilder[A, Array[A]](ArrayBuilder.make[A](), DenseArrayVec(_))
 }
