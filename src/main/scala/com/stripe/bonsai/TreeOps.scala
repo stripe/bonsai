@@ -75,6 +75,7 @@ trait TreeOps[T] { ops =>
 }
 
 object TreeOps {
+  final def apply[T](implicit ops: TreeOps[T]) = ops
 
   /**
    * A type alias for `TreeOps` that let's you use the `Node` and `Label` types

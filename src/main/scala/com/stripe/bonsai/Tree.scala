@@ -1,5 +1,7 @@
 package com.stripe.bonsai
 
+import scala.language.existentials
+
 import scala.reflect.ClassTag
 
 import scala.collection.immutable.Queue
@@ -23,7 +25,7 @@ class Tree[A](val bitset: Bitset, val labels: Vec[A]) {
 
   private def mkNodeRef(index: Int): Option[NodeRef[A]] =
     if (bitset(index)) {
-      Some(NodeRef(this, bitset.rank(index)))
+      Some(NodeRef(this, bitset.rank(index) - 1))
     } else {
       None
     }
@@ -34,13 +36,20 @@ class Tree[A](val bitset: Bitset, val labels: Vec[A]) {
   def isEmpty: Boolean =
     root.isEmpty
 
+  override def toString: String = {
+    def show(node: NodeRef[A]): String = {
+      s"${node.label} -> ${node.children.map(show).toList}"
+    }
+    s"Tree(${root.map(show).getOrElse("")})"
+  }
+
   // Private?
 
   def firstChild(node: NodeRef[A]): Option[NodeRef[A]] =
-    mkNodeRef(2 * node.index - 1)
+    mkNodeRef(2 * node.index + 1)
 
   def nextSibling(node: NodeRef[A]): Option[NodeRef[A]] =
-    mkNodeRef(2 * node.index)
+    mkNodeRef(2 * node.index + 2)
 }
 
 object Tree {
@@ -147,10 +156,11 @@ object Tree {
           case (inode @ InternalNode(node, _), rest) =>
             bitsBldr += true
             labelBldr += node.label
-            build(nodes.enqueue(inode.leftChild).enqueue(inode.rightChild))
+            build(rest.enqueue(inode.leftChild).enqueue(inode.rightChild))
 
           case (ExternalNode, rest) =>
             bitsBldr += false
+            build(rest)
         }
       }
 
