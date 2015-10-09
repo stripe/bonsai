@@ -36,6 +36,7 @@ import scala.reflect.ClassTag
  * }}}
  */
 trait TreeOps[T] { ops =>
+  type WithLabel[L] = TreeOps[T] { type Label = L }
 
   /** The type of the nodes in the tree. */
   type Node
@@ -82,9 +83,8 @@ object TreeOps {
    * with Scala's type inference / implicit lookup. You normally shouldn't need
    * this, but is invaluable when you do.
    */
-  type Aux[T, N, D] = TreeOps[T] {
-    type Node = N
-    type Label = D
+  type Aux[T, L] = TreeOps[T] {
+    type Label = L
   }
 
   trait WithLayout[T] {
@@ -93,7 +93,7 @@ object TreeOps {
   }
 
   object WithLayout {
-    implicit def mkWithLayout[T, N, D](implicit ops: Aux[T, N, D], lt: Layout[D]): WithLayout[T] =
+    implicit def mkWithLayout[T, D](implicit ops: Aux[T, D], lt: Layout[D]): WithLayout[T] =
       new WithLayout[T] {
         val treeOps = ops
         val layout = lt
