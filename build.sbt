@@ -1,10 +1,23 @@
-scalaVersion := "2.11.7"
+organization in ThisBuild := "com.stripe"
+scalaVersion in ThisBuild := "2.11.7"
 
-scalacOptions += "-feature"
+scalacOptions ++= Seq(
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-optimize"
+)
+
+autoAPIMappings in ThisBuild := true
+maxErrors in ThisBuild := 8
+
+val unpublished = Seq(publish := (), publishLocal := (), publishArtifact := false)
 
 lazy val root = project.
   in(file(".")).
-  aggregate(bonsaiCore)
+  aggregate(bonsaiCore).
+  settings(unidocSettings: _*).
+  settings(unpublished: _*)
 
 lazy val bonsaiCore = project.
   in(file("bonsai-core"))

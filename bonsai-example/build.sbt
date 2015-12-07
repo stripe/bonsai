@@ -1,6 +1,6 @@
 name := "bonsai-example"
 
-libraryDependencies += "com.github.jbellis" % "jamm" % "0.3.1"
+libraryDependencies += Deps.jamm
 
 fork in run := true
 
