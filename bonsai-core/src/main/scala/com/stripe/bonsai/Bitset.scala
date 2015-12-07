@@ -66,6 +66,9 @@ object Bitset {
 
   val empty: Bitset = new Bitset(new Array[Int](0), 0, 0, 0)
 
+  def fromSeq(xs: Seq[Int]): Bitset =
+    fromBitSet(BitSet(xs: _*))
+
   def fromBitSet(bitSet: BitSet): Bitset = {
     if (bitSet.isEmpty) {
       empty
