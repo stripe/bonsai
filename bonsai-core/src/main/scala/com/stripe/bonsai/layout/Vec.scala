@@ -1,4 +1,5 @@
-package com.stripe.bonsai.layout
+package com.stripe.bonsai
+package layout
 
 import scala.collection.mutable.Builder
 
@@ -8,6 +9,14 @@ trait Vec[@specialized A] {
 
   def map[B](f: A => B): Vec[B] =
     new MappedVec[A, B](this, f)
+}
+
+object Vec {
+  def apply[A](as: A*)(implicit layout: Layout[A]): Vec[A] = {
+    val bldr = layout.newBuilder
+    bldr ++= as
+    bldr.result()
+  }
 }
 
 trait VecBuilder[A] extends Builder[A, Vec[A]]

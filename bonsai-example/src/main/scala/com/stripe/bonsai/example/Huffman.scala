@@ -7,7 +7,7 @@ import scala.collection.BitSet
 import scala.collection.mutable.PriorityQueue
 import scala.util.Random.nextGaussian
 
-object Huffman extends App {
+object HuffmanExample extends App {
   sealed trait HuffmanTree[+A]
 
   object HuffmanTree {
@@ -69,7 +69,7 @@ object Huffman extends App {
     }
   }
 
-  val symbols = Map(('a' to 'z').map { symbol =>
+  val symbols = Map((' ' to '~').map { symbol =>
     symbol -> math.abs(nextGaussian)
   }: _*)
   val bigTree = HuffmanTree(symbols)

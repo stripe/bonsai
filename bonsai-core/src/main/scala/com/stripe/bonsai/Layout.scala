@@ -19,11 +19,11 @@ trait Layout[A] {
 }
 
 trait LayoutLow1 {
-  implicit def denseVector[A] = new DenseIndexedSeqLayout[Vector, A]
+  implicit def denseVector[A]: Layout[A] = new DenseIndexedSeqLayout[Vector, A]
 }
 
 trait LayoutLow2 extends LayoutLow1 {
-  implicit def denseArray[A: ClassTag] = new DenseArrayLayout[A]
+  implicit def denseArray[A: ClassTag]: Layout[A] = new DenseArrayLayout[A]
 }
 
 object Layout extends LayoutLow2 {
