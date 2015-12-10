@@ -82,7 +82,7 @@ object Bitset {
   }
 
   def rankWord(word: Int, i: Int): Int = {
-    val mask = if (i == 31) -1 else ~(Int.MinValue >> (30 - i))
+    val mask = ~(-1L << ((i + 1))).toInt
     java.lang.Integer.bitCount(word & mask)
   }
 
