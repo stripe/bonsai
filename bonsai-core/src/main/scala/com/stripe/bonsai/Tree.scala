@@ -2,10 +2,7 @@ package com.stripe.bonsai
 
 import scala.language.existentials
 
-import scala.reflect.ClassTag
-
 import scala.collection.immutable.Queue
-import scala.collection.mutable.ArrayBuilder
 
 import com.stripe.bonsai.layout.Vec
 
