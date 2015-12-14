@@ -9,7 +9,7 @@ import com.stripe.bonsai.layout.Vec
 class FullBinaryTree[A, B](
   val bitset: Bitset,
   val leaf: Bitset,
-  val nodeLabels: Vec[A],
+  val branchLabels: Vec[A],
   val leafLabels: Vec[B]
 ) { tree =>
   private def mkNodeRef(bitsetIndex: Int): NodeRef =
@@ -26,7 +26,7 @@ class FullBinaryTree[A, B](
     def leftChild: NodeRef = tree.mkNodeRef(2 * index + 1)
     def rightChild: NodeRef = tree.mkNodeRef(2 * index + 2)
     def isLeaf: Boolean = tree.leaf(index)
-    def nodeLabel: A = nodeLabels(index - bitset.rank(index))
+    def branchLabel: A = branchLabels(index - bitset.rank(index))
     def leafLabel: B = leafLabels(bitset.rank(index) - 1)
   }
 }
@@ -35,12 +35,12 @@ object FullBinaryTree {
   implicit def BonsaiFullBinaryTreeOps[A, B]: FullBinaryTreeOps[FullBinaryTree[A, B]] =
     new FullBinaryTreeOps[FullBinaryTree[A, B]] {
       type Node = FullBinaryTree[A, B]#NodeRef
-      type NodeLabel = A
+      type BranchLabel = A
       type LeafLabel = B
 
       def root(t: FullBinaryTree[A, B]): Option[Node] = t.root
       def isLeaf(node: Node): Boolean = node.isLeaf
-      def nodeLabel(node: Node): NodeLabel = node.nodeLabel
+      def branchLabel(node: Node): BranchLabel = node.branchLabel
       def leafLabel(node: Node): LeafLabel = node.leafLabel
       def leftChild(node: Node): Node = node.leftChild
       def rightChild(node: Node): Node = node.rightChild
@@ -59,13 +59,13 @@ object FullBinaryTree {
    *
    * @param tree the tree whose structure we are copying
    */
-  def apply[T](tree: T)(implicit ev: FullBinaryTreeOps.WithLayout[T]): FullBinaryTree[ev.treeOps.NodeLabel, ev.treeOps.LeafLabel] = {
+  def apply[T](tree: T)(implicit ev: FullBinaryTreeOps.WithLayout[T]): FullBinaryTree[ev.treeOps.BranchLabel, ev.treeOps.LeafLabel] = {
     import ev._
     import treeOps._
 
     val bitsBldr = Bitset.newBuilder
     val leafBldr = Bitset.newBuilder
-    val nodeLabelBldr = Layout[NodeLabel].newBuilder
+    val branchLabelBldr = Layout[BranchLabel].newBuilder
     val leafLabelBldr = Layout[LeafLabel].newBuilder
 
     def build(nodes: Queue[Option[Node]]): Unit =
@@ -82,7 +82,7 @@ object FullBinaryTree {
               build(rest.enqueue(None).enqueue(None))
             } else {
               leafBldr += false
-              nodeLabelBldr += treeOps.nodeLabel(node)
+              branchLabelBldr += treeOps.branchLabel(node)
               build(rest.enqueue(Some(treeOps.leftChild(node))).enqueue(Some(treeOps.rightChild(node))))
             }
         }
@@ -92,7 +92,7 @@ object FullBinaryTree {
       case Some(node) =>
         build(Queue(Some(node)))
         new FullBinaryTree(bitsBldr.result(), leafBldr.result(),
-          nodeLabelBldr.result(), leafLabelBldr.result())
+          branchLabelBldr.result(), leafLabelBldr.result())
 
       case None =>
         FullBinaryTree.empty
