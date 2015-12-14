@@ -1,7 +1,5 @@
 package com.stripe.bonsai
 
-import scala.reflect.ClassTag
-
 /**
  * TreeOps is a type class for abstracting over arbitrary trees, allowing
  * traversal and data access. In general, it assumes that we can quickly access
