@@ -50,14 +50,13 @@ class Tree[A](val bitset: Bitset, val labels: Vec[A]) {
 }
 
 object Tree {
-  implicit def BonsaiTreeOps[A]: TreeOps[Tree[A]] =
-    new TreeOps[Tree[A]] {
+  implicit def BonsaiTreeOps[A]: TreeOps[Tree[A], A] =
+    new TreeOps[Tree[A], A] {
       type Node = NodeRef[A]
-      type Label = A
 
       def root(t: Tree[A]): Option[Node] = t.root
       def children(node: Node): Iterable[Node] = node
-      def label(node: Node): Label = node.label
+      def label(node: Node): A = node.label
     }
 
   /**
@@ -73,9 +72,8 @@ object Tree {
    *
    * @param tree the tree whose structure we are copying
    */
-  def apply[T](tree: T)(implicit ev: TreeOps.WithLayout[T]): Tree[ev.treeOps.Label] = {
+  def apply[T, L](tree: T)(implicit ev: TreeOps[T, L]): Tree[L] = {
     import ev._
-    import treeOps._
 
     // We accept k-ary trees, but actually need binary trees for the succinct
     // data structure. So, we use the first-child/sibling representation to
@@ -138,7 +136,7 @@ object Tree {
     }
 
     val bitsBldr = Bitset.newBuilder
-    val labelBldr = Layout[Label].newBuilder
+    val labelBldr = Layout[L].newBuilder
 
     // We build the datastructure in this loop. We traverse the transformed
     // tree in level-order (breadth-first search). Each internal node is marked

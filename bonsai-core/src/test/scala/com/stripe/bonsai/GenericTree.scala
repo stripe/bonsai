@@ -12,13 +12,13 @@ object GenericTree {
   def leaf[A](label: A): GenericTree[A] =
     GenericTree(label, Nil)
 
-  implicit def GenericTreeOps[A] = new TreeOps[GenericTree[A]] {
-    type Node = GenericTree[A]
-    type Label = A
-    def root(t: GenericTree[A]): Option[Node] = Some(t)
-    def children(node: Node): List[Node] = node.children
-    def label(node: Node): Label = node.label
-  }
+  implicit def GenericTreeOps[A]: TreeOps[GenericTree[A], A] =
+    new TreeOps[GenericTree[A], A] {
+      type Node = GenericTree[A]
+      def root(t: GenericTree[A]): Option[Node] = Some(t)
+      def children(node: Node): List[Node] = node.children
+      def label(node: Node): A = node.label
+    }
 
   def fromTree[A](tree: Tree[A]): Option[GenericTree[A]] = {
     def mkTree(node: Tree.NodeRef[A]): GenericTree[A] =

@@ -33,19 +33,15 @@ package com.stripe.bonsai
  * }
  * }}}
  */
-trait TreeOps[T] { ops =>
-  type WithLabel[L] = TreeOps[T] { type Label = L }
+trait TreeOps[Tree, Label] { ops =>
 
   /** The type of the nodes in the tree. */
   type Node
 
-  /** The type of the label attached to each node. */
-  type Label
-
   /**
    * Returns the root node of the tree.
    */
-  def root(t: T): Option[Node]
+  def root(t: Tree): Option[Node]
 
   /**
    * Returns all the direct children of the given node. The order may or may
@@ -61,12 +57,12 @@ trait TreeOps[T] { ops =>
   def fold[A](f: (Label, Iterable[A]) => A)(node: Node): A =
     f(label(node), children(node).map(fold(f)))
 
-  implicit class TreeTreeOps(tree: T) {
+  implicit class OpsForTree(tree: Tree) {
     def root: Option[Node] = ops.root(tree)
     def fold[A](f: (Label, Iterable[A]) => A): Option[A] = root.map(ops.fold(f))
   }
 
-  implicit class TreeNodeOps(node: Node) {
+  implicit class OpsForNode(node: Node) {
     def children: Iterable[Node] = ops.children(node)
     def label: Label = ops.label(node)
     def fold[A](f: (Label, Iterable[A]) => A): A = ops.fold(f)(node)
@@ -74,27 +70,5 @@ trait TreeOps[T] { ops =>
 }
 
 object TreeOps {
-  final def apply[T](implicit ops: TreeOps[T]) = ops
-
-  /**
-   * A type alias for `TreeOps` that let's you use the `Node` and `Label` types
-   * with Scala's type inference / implicit lookup. You normally shouldn't need
-   * this, but is invaluable when you do.
-   */
-  type Aux[T, L] = TreeOps[T] {
-    type Label = L
-  }
-
-  trait WithLayout[T] {
-    implicit val treeOps: TreeOps[T]
-    implicit val layout: Layout[treeOps.Label]
-  }
-
-  object WithLayout {
-    implicit def mkWithLayout[T, D](implicit ops: Aux[T, D], lt: Layout[D]): WithLayout[T] =
-      new WithLayout[T] {
-        val treeOps = ops
-        val layout = lt
-      }
-  }
+  final def apply[Tree, Label](implicit ops: TreeOps[Tree, Label]) = ops
 }
