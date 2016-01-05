@@ -12,38 +12,43 @@ class FullBinaryTree[A, B](
   val branchLabels: Vec[A],
   val leafLabels: Vec[B]
 ) { tree =>
-  private def mkNodeRef(bitsetIndex: Int): NodeRef =
-    new NodeRef(bitset.rank(bitsetIndex) - 1)
 
-  def root: Option[NodeRef] =
-    if (bitset(0)) Some(mkNodeRef(0))
-    else None
+  private def mkNodeRef(bitsetIndex: Int): NodeRef = {
+    val index = bitset.rank(bitsetIndex) - 1
+    if (tree.leaf(index)) new LeafRef(index) else new BranchRef(index)
+  }
 
-  def isEmpty: Boolean =
-    root.isEmpty
+  def root: Option[NodeRef] = if (bitset(0)) Some(mkNodeRef(0)) else None
 
-  final class NodeRef private[FullBinaryTree] (index: Int) {
+  def isEmpty: Boolean = bitset(0)
+
+  sealed abstract class NodeRef {
+    def fold[R](f: (NodeRef, NodeRef, A) => R, g: B => R): R
+  }
+
+  final class LeafRef private[FullBinaryTree] (index: Int) extends NodeRef {
+    def label: B = leafLabels(bitset.rank(index) - 1)
+    def fold[R](f: (NodeRef, NodeRef, A) => R, g: B => R): R = g(label)
+  }
+
+  final class BranchRef private[FullBinaryTree] (index: Int) extends NodeRef {
+    def label: A = branchLabels(index - bitset.rank(index))
     def leftChild: NodeRef = tree.mkNodeRef(2 * index + 1)
     def rightChild: NodeRef = tree.mkNodeRef(2 * index + 2)
-    def isLeaf: Boolean = tree.leaf(index)
-    def branchLabel: A = branchLabels(index - bitset.rank(index))
-    def leafLabel: B = leafLabels(bitset.rank(index) - 1)
+    def fold[R](f: (NodeRef, NodeRef, A) => R, g: B => R): R = f(leftChild, rightChild, label)
   }
 }
 
 object FullBinaryTree {
-  implicit def BonsaiFullBinaryTreeOps[A, B]: FullBinaryTreeOps[FullBinaryTree[A, B]] =
-    new FullBinaryTreeOps[FullBinaryTree[A, B]] {
+  implicit def BonsaiFullBinaryTreeOps[A, B]: FullBinaryTreeOps[FullBinaryTree[A, B], A, B] =
+    new FullBinaryTreeOps[FullBinaryTree[A, B], A, B] {
       type Node = FullBinaryTree[A, B]#NodeRef
-      type BranchLabel = A
-      type LeafLabel = B
 
-      def root(t: FullBinaryTree[A, B]): Option[Node] = t.root
-      def isLeaf(node: Node): Boolean = node.isLeaf
-      def branchLabel(node: Node): BranchLabel = node.branchLabel
-      def leafLabel(node: Node): LeafLabel = node.leafLabel
-      def leftChild(node: Node): Node = node.leftChild
-      def rightChild(node: Node): Node = node.rightChild
+      def root(t: FullBinaryTree[A, B]): Option[Node] =
+        t.root
+
+      def foldNode[X](node: Node)(f: (Node, Node, A) => X, g: B => X): X =
+        node.fold(f, g)
     }
 
   /**
@@ -59,14 +64,13 @@ object FullBinaryTree {
    *
    * @param tree the tree whose structure we are copying
    */
-  def apply[T](tree: T)(implicit ev: FullBinaryTreeOps.WithLayout[T]): FullBinaryTree[ev.treeOps.BranchLabel, ev.treeOps.LeafLabel] = {
+  def apply[T, B, L](tree: T)(implicit ev: FullBinaryTreeOps[T, B, L], lb: Layout[B], ll: Layout[L]): FullBinaryTree[B, L] = {
     import ev._
-    import treeOps._
 
     val bitsBldr = Bitset.newBuilder
     val leafBldr = Bitset.newBuilder
-    val branchLabelBldr = Layout[BranchLabel].newBuilder
-    val leafLabelBldr = Layout[LeafLabel].newBuilder
+    val branchLabelBldr = lb.newBuilder
+    val leafLabelBldr = ll.newBuilder
 
     def build(nodes: Queue[Option[Node]]): Unit =
       if (nodes.nonEmpty) {
@@ -76,15 +80,16 @@ object FullBinaryTree {
             build(rest)
           case (Some(node), rest) =>
             bitsBldr += true
-            if (treeOps.isLeaf(node)) {
-              leafBldr += true
-              leafLabelBldr += treeOps.leafLabel(node)
-              build(rest.enqueue(None).enqueue(None))
-            } else {
+            val (ol, or) = foldNode(node)({ (lc, rc, bl) =>
               leafBldr += false
-              branchLabelBldr += treeOps.branchLabel(node)
-              build(rest.enqueue(Some(treeOps.leftChild(node))).enqueue(Some(treeOps.rightChild(node))))
-            }
+              branchLabelBldr += bl
+              (Some(lc), Some(rc))
+            }, { ll =>
+              leafBldr += true
+              leafLabelBldr += ll
+              (None, None)
+            })
+            build(rest.enqueue(ol).enqueue(or))
         }
       }
 
