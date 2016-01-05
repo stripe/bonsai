@@ -64,13 +64,13 @@ object FullBinaryTree {
    *
    * @param tree the tree whose structure we are copying
    */
-  def apply[T, B, L](tree: T)(implicit ev: FullBinaryTreeOps[T, B, L]): FullBinaryTree[B, L] = {
+  def apply[T, B, L](tree: T)(implicit ev: FullBinaryTreeOps[T, B, L], lb: Layout[B], ll: Layout[L]): FullBinaryTree[B, L] = {
     import ev._
 
     val bitsBldr = Bitset.newBuilder
     val leafBldr = Bitset.newBuilder
-    val branchLabelBldr = Layout[B].newBuilder
-    val leafLabelBldr = Layout[L].newBuilder
+    val branchLabelBldr = lb.newBuilder
+    val leafLabelBldr = ll.newBuilder
 
     def build(nodes: Queue[Option[Node]]): Unit =
       if (nodes.nonEmpty) {

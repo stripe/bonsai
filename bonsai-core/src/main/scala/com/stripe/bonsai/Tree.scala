@@ -72,7 +72,7 @@ object Tree {
    *
    * @param tree the tree whose structure we are copying
    */
-  def apply[T, L](tree: T)(implicit ev: TreeOps[T, L]): Tree[L] = {
+  def apply[T, L](tree: T)(implicit ev: TreeOps[T, L], ll: Layout[L]): Tree[L] = {
     import ev._
 
     // We accept k-ary trees, but actually need binary trees for the succinct
@@ -136,7 +136,7 @@ object Tree {
     }
 
     val bitsBldr = Bitset.newBuilder
-    val labelBldr = Layout[L].newBuilder
+    val labelBldr = ll.newBuilder
 
     // We build the datastructure in this loop. We traverse the transformed
     // tree in level-order (breadth-first search). Each internal node is marked
