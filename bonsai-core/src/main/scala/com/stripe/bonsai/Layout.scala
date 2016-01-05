@@ -18,15 +18,11 @@ trait Layout[A] {
   def optional: Layout[Option[A]] = Layout.optional(this)
 }
 
-trait LayoutLow1 {
-  implicit def denseVector[A]: Layout[A] = new DenseIndexedSeqLayout[Vector, A]
-}
-
-trait LayoutLow2 extends LayoutLow1 {
+trait LayoutLow {
   implicit def denseArray[A: ClassTag]: Layout[A] = new DenseArrayLayout[A]
 }
 
-object Layout extends LayoutLow2 {
+object Layout extends LayoutLow {
   def apply[A](implicit layout: Layout[A]): Layout[A] = layout
 
   implicit def optional[A](implicit layout: Layout[A]): Layout[Option[A]] = new OptionalLayout(layout)
