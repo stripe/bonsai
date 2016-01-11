@@ -14,6 +14,11 @@ import scala.collection.mutable.{ Builder, ArrayBuilder }
  *
  * To support fast rank, this bitset requires ~1.37n bits, rather than
  * the n bits that other bitsets (e.g. `scala.BitSet`) would use.
+ *
+ * Unlike some immutable structures, there is no form of structural
+ * sharing here. Thus, the only way to "modify" one of these
+ * structures is to build a new one that has the desired modifications
+ * (which will not be efficient if done frequently).
  */
 final class IndexedBitSet(
   val bits: Array[Int],
