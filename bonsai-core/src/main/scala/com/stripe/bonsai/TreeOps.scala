@@ -54,18 +54,27 @@ trait TreeOps[Tree, Label] { ops =>
    */
   def label(node: Node): Label
 
-  def fold[A](f: (Label, Iterable[A]) => A)(node: Node): A =
-    f(label(node), children(node).map(fold(f)))
+  def fold[A](node: Node)(f: (Label, Iterable[Node]) => A): A =
+    f(label(node), children(node))
+
+  def fold[A](tree: Tree)(f: (Label, Iterable[Node]) => A): Option[A] =
+    root(tree).map(n => fold(n)(f))
+
+  def reduce[A](node: Node)(f: (Label, Iterable[A]) => A): A =
+    f(label(node), children(node).map(reduce(_)(f)))
+
+  def reduce[A](tree: Tree)(f: (Label, Iterable[A]) => A): Option[A] =
+    root(tree).map(n => reduce(n)(f))
 
   implicit class OpsForTree(tree: Tree) {
     def root: Option[Node] = ops.root(tree)
-    def fold[A](f: (Label, Iterable[A]) => A): Option[A] = root.map(ops.fold(f))
+    def reduce[A](f: (Label, Iterable[A]) => A): Option[A] = root.map(ops.reduce(_)(f))
   }
 
   implicit class OpsForNode(node: Node) {
     def children: Iterable[Node] = ops.children(node)
     def label: Label = ops.label(node)
-    def fold[A](f: (Label, Iterable[A]) => A): A = ops.fold(f)(node)
+    def reduce[A](f: (Label, Iterable[A]) => A): A = ops.reduce(node)(f)
   }
 }
 

@@ -3,6 +3,7 @@ package com.stripe.bonsai
 import scala.language.existentials
 
 import scala.collection.immutable.Queue
+import scala.collection.mutable.ListBuffer
 
 import com.stripe.bonsai.layout.Vec
 
@@ -17,7 +18,7 @@ import com.stripe.bonsai.layout.Vec
  * @param bitset the underlying bitset that supports fast rank/select
  * @param labels the label associated with each node, indexed by its label
  */
-class Tree[A](val bitset: Bitset, val labels: Vec[A]) {
+class Tree[A](val bitset: IndexedBitSet, val labels: Vec[A]) {
   import Tree.NodeRef
 
   private def mkNodeRef(index: Int): Option[NodeRef[A]] =
@@ -41,12 +42,17 @@ class Tree[A](val bitset: Bitset, val labels: Vec[A]) {
   }
 
   // Private?
+  @inline final def firstChildIndex(index: Int): Int =
+    2 * index + 1
+
+  @inline final def nextSiblingIndex(index: Int): Int =
+    2 * index + 2
 
   def firstChild(node: NodeRef[A]): Option[NodeRef[A]] =
-    mkNodeRef(2 * node.index + 1)
+    mkNodeRef(firstChildIndex(node.index))
 
   def nextSibling(node: NodeRef[A]): Option[NodeRef[A]] =
-    mkNodeRef(2 * node.index + 2)
+    mkNodeRef(nextSiblingIndex(node.index))
 }
 
 object Tree {
@@ -57,13 +63,30 @@ object Tree {
       def root(t: Tree[A]): Option[Node] = t.root
       def children(node: Node): Iterable[Node] = node
       def label(node: Node): A = node.label
+
+      // optimized version of reduce
+      // this method avoids allocating any extra Node instances.
+      override def reduce[X](node: Node)(f: (A, Iterable[X]) => X): X = {
+        val tree = node.tree
+        def assemble(index: Int): Iterable[X] = {
+          var buf = List.empty[X]
+          var i = tree.firstChildIndex(index)
+          while (tree.bitset(i)) {
+            val n = tree.bitset.rank(i) - 1
+            buf = f(tree.labels(n), assemble(n)) :: buf
+            i = tree.nextSiblingIndex(n)
+          }
+          buf
+        }
+        f(node.label, assemble(node.index))
+      }
     }
 
   /**
    * Returns an empty, 0-node bonsai `Tree`.
    */
   def empty[A: Layout]: Tree[A] =
-    new Tree(Bitset.empty, Layout[A].empty)
+    new Tree(IndexedBitSet.empty, Layout[A].empty)
 
   /**
    * Constructs a bonsai `Tree` from some other arbitrary tree structure. The 2
@@ -135,7 +158,7 @@ object Tree {
       }
     }
 
-    val bitsBldr = Bitset.newBuilder
+    val bitsBldr = IndexedBitSet.newBuilder
     val labelBldr = ll.newBuilder
 
     // We build the datastructure in this loop. We traverse the transformed
@@ -143,7 +166,7 @@ object Tree {
     // in the bitset as 1 and each external node is marked as 0. Essentially,
     // what we are doing is labelling each internal node, starting from 1
     // (root), in level-order. The label for some internal node in the binary
-    // tree can be retrieved using Bitset's `rank`. This let's avoid actually
+    // tree can be retrieved using IndexedBitSet's `rank`. This let's avoid actually
     // storing each invidivual label.
     def build(nodes: Queue[BinaryNode]): Unit =
       if (nodes.nonEmpty) {
