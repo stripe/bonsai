@@ -54,6 +54,8 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
         val elems = trees.foldLeft(Set(x))((xs, t) => xs | doTree(t)(nodeElems))
         doTree(tree)(nodeElems) shouldBe elems
         doTree(tree)(minNode) shouldBe elems.min
+
+        tree.reduce[Set[Int]](Set(_) | _ | _)(Set(_)) shouldBe Some(elems)
       }
     }
   }

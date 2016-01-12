@@ -41,21 +41,20 @@ class Tree[A](val bitset: IndexedBitSet, val labels: Vec[A]) {
     s"Tree(${root.map(show).getOrElse("")})"
   }
 
-  // Private?
-  @inline final def firstChildIndex(index: Int): Int =
-    2 * index + 1
-
-  @inline final def nextSiblingIndex(index: Int): Int =
-    2 * index + 2
-
   def firstChild(node: NodeRef[A]): Option[NodeRef[A]] =
-    mkNodeRef(firstChildIndex(node.index))
+    //mkNodeRef(2 * node.index + 1)
+    mkNodeRef(Tree.firstChildIndex(node.index))
 
   def nextSibling(node: NodeRef[A]): Option[NodeRef[A]] =
-    mkNodeRef(nextSiblingIndex(node.index))
+    //mkNodeRef(2 * node.index + 2)
+    mkNodeRef(Tree.nextSiblingIndex(node.index))
 }
 
 object Tree {
+
+  @inline final def firstChildIndex(index: Int) = 2 * index + 1
+  @inline final def nextSiblingIndex(index: Int) = 2 * index + 2
+
   implicit def BonsaiTreeOps[A]: TreeOps[Tree[A], A] =
     new TreeOps[Tree[A], A] {
       type Node = NodeRef[A]
@@ -70,11 +69,11 @@ object Tree {
         val tree = node.tree
         def assemble(index: Int): Iterable[X] = {
           var buf = List.empty[X]
-          var i = tree.firstChildIndex(index)
+          var i = Tree.firstChildIndex(index)
           while (tree.bitset(i)) {
             val n = tree.bitset.rank(i) - 1
             buf = f(tree.labels(n), assemble(n)) :: buf
-            i = tree.nextSiblingIndex(n)
+            i = Tree.nextSiblingIndex(n)
           }
           buf
         }
