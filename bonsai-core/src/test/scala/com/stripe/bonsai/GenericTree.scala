@@ -28,7 +28,7 @@ object GenericTree {
   }
 
   implicit def arbitraryTree[A: Arbitrary]: Arbitrary[GenericTree[A]] =
-    Arbitrary(genTree(arbitrary[A], 3, 7))
+    Arbitrary(genTree(arbitrary[A], 4, 7))
 
   def genTree[A](genLabel: Gen[A], maxChildren: Int, maxDepth: Int): Gen[GenericTree[A]] =
     if (maxDepth == 1) genLabel.map(GenericTree.leaf) else {
@@ -73,7 +73,7 @@ object GenericBinTree {
   }
 
   implicit def arbitraryGenericBinTree[A: Arbitrary]: Arbitrary[GenericBinTree[A]] =
-    Arbitrary(genGenericBinTree(arbitrary[A], 5))
+    Arbitrary(genGenericBinTree(arbitrary[A], 9))
 
   def genGenericBinTreeLeaf[A](genLabel: Gen[A]): Gen[GenericBinTree[A]] =
     genLabel.map(GenericBinTree.leaf)

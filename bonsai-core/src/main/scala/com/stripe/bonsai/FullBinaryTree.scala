@@ -10,8 +10,9 @@ import com.stripe.bonsai.layout.Vec
  * This type represents a binary tree, where each branch is guaranteed
  * to have two children (i.e. it is "full").
  *
- * Members:
+ * =Members=
  *
+ * {{{
  *  - bitset: encodes the tree structure using a concept of internal
  *    and external nodes, e.g. a (potentially unbalanced) heap.  it's
  *    sort of complicated. basically, for non-balanced trees, we need
@@ -27,9 +28,13 @@ import com.stripe.bonsai.layout.Vec
  *
  *  - leafLabels: a dense array of leaf label values to index into. we
  *    use isLeaf to convert 'bitset indices' into 'leafLabels' indices.
+ * }}}
  *
- * Example 1:
+ * =Examples=
  *
+ * ==Example 1==
+ *
+ * {{{
  *       a
  *      / \
  *     b   c
@@ -42,9 +47,11 @@ import com.stripe.bonsai.layout.Vec
  * isLeaf: 0001111
  * branchLabels: a,b,c
  * leafLabels: d,e,f,g
+ * }}}
  *
- * Example 2:
+ * ==Example 2==
  *
+ * {{{
  *       a
  *      / \
  *     b   c
@@ -57,6 +64,7 @@ import com.stripe.bonsai.layout.Vec
  * isLeaf: 01011
  * branchLabels: a,c
  * leafLabels: b,d,e
+ * }}}
  *
  */
 class FullBinaryTree[A, B](

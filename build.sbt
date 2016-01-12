@@ -26,6 +26,3 @@ lazy val bonsaiCore = project.
 lazy val bonsaiExample = project.
   in(file("bonsai-example")).
   dependsOn(bonsaiCore)
-
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
-
