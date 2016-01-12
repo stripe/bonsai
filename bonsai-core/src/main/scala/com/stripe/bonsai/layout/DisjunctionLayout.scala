@@ -23,7 +23,7 @@ class DisjunctionBuilder[A, B, C](
   mkLeft: A => C,
   mkRight: B => C
 ) extends VecBuilder[C] {
-  val bitsetBldr = new BitsetBuilder
+  val bitsetBldr = new IndexedBitSetBuilder
 
   def +=(that: C) = {
     unpack(that) match {
@@ -52,7 +52,7 @@ class DisjunctionBuilder[A, B, C](
 }
 
 class DisjunctionVec[A, B, C](
-  bitset: Bitset,
+  bitset: IndexedBitSet,
   left: Vec[A],
   right: Vec[B],
   mkLeft: A => C,

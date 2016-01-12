@@ -9,7 +9,7 @@ import org.scalacheck.Arbitrary._
 
 import scala.collection.immutable.BitSet
 
-class BitsetSpec extends WordSpec with Matchers with Checkers {
+class IndexedBitSetSpec extends WordSpec with Matchers with Checkers {
 
   implicit val arbitraryBitSet: Arbitrary[BitSet] =
     Arbitrary(arbitrary[Set[Short]].map(xs => BitSet(xs.map(_ & 0xffff).toSeq: _*)))
@@ -24,25 +24,25 @@ class BitsetSpec extends WordSpec with Matchers with Checkers {
       bs = BitSet(vals.zipWithIndex.filter(_._1).map(_._2): _*)
     } yield BitSetWithIndex(bs, i))
 
-  "Bitset" should {
+  "IndexedBitSet" should {
     "be equivalent to Set[Int]" in {
       check { (xs: BitSet) =>
-        val bs = Bitset.fromBitSet(xs)
+        val bs = IndexedBitSet.fromBitSet(xs)
         xs.isEmpty || (0 to xs.max).forall { x => bs(x) == xs(x) }
       }
     }
 
     "be isomorphic to BitSet" in {
       check { (xs: BitSet) =>
-        val bs = Bitset.fromBitSet(xs)
+        val bs = IndexedBitSet.fromBitSet(xs)
         xs == bs.toBitSet
       }
     }
 
-    "rank(i) is equal to number of 1 bits below i" in {
+    "rank(i) is equal to number of 1 bits below or at i" in {
       check { (bswi: BitSetWithIndex) =>
         val BitSetWithIndex(xs, i) = bswi
-        val bs = Bitset.fromBitSet(xs)
+        val bs = IndexedBitSet.fromBitSet(xs)
         if (xs.isEmpty) true
         else bs.rank(i) == xs.filter(_ <= i).size
       }

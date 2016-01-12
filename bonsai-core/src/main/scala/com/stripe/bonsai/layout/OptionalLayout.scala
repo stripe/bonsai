@@ -7,7 +7,7 @@ case class OptionalLayout[A](layout: Layout[A]) extends Layout[Option[A]] {
 }
 
 class OptionalBuilder[A](bldr: VecBuilder[A]) extends VecBuilder[Option[A]] {
-  val bitsetBldr = new BitsetBuilder
+  val bitsetBldr = IndexedBitSet.newBuilder
 
   def +=(opt: Option[A]) = {
     opt match {
@@ -30,7 +30,7 @@ class OptionalBuilder[A](bldr: VecBuilder[A]) extends VecBuilder[Option[A]] {
     new OptionalVec[A](bitsetBldr.result(), bldr.result())
 }
 
-class OptionalVec[A](bitset: Bitset, vec: Vec[A]) extends Vec[Option[A]] {
+class OptionalVec[A](bitset: IndexedBitSet, vec: Vec[A]) extends Vec[Option[A]] {
   def size: Int = bitset.length
   def apply(index: Int): Option[A] =
     if (bitset(index)) Some(vec(bitset.rank(index) - 1))
