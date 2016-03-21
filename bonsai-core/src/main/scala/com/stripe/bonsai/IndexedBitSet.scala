@@ -5,20 +5,18 @@ import scala.collection.immutable.BitSet
 import scala.collection.mutable.{ Builder, ArrayBuilder }
 
 /**
- * IndexedBitSet is an immutable set for storing non-negative integer
- * values.
- * 
- * This data structure stores non-negative integers. It has O(1)
- * lookup and rank operations. It also supports O(polylog n) select
- * operations, which are not currently implemented.
+ * IndexedBitSet is an immutable set for storing non-negative integer values.
  *
- * To support fast rank, this bitset requires ~1.37n bits, rather than
- * the n bits that other bitsets (e.g. `scala.BitSet`) would use.
+ * This data structure stores non-negative integers. It has O(1) lookup and
+ * rank operations. It also supports O(polylog n) select operations.
  *
- * Unlike some immutable structures, there is no form of structural
- * sharing here. Thus, the only way to "modify" one of these
- * structures is to build a new one that has the desired modifications
- * (which will not be efficient if done frequently).
+ * To support fast rank and select, this bitset requires ~1.37n bits, rather
+ * than the n bits that other bitsets (e.g. `scala.BitSet`) would use.
+ *
+ * Unlike some immutable structures, there is no form of structural sharing
+ * here. Thus, the only way to "modify" one of these structures is to build a
+ * new one that has the desired modifications (which will not be efficient if
+ * done frequently).
  */
 final class IndexedBitSet(
   val bits: Array[Int],
@@ -26,7 +24,7 @@ final class IndexedBitSet(
   val level2Start: Int,
   val rawBitsStart: Int
 ) {
-  import IndexedBitSet.rankWord
+  import IndexedBitSet.{rankWord, selectWord, ceilDiv}
 
   /**
    * Test if `i` is contained in this bitset.
@@ -52,19 +50,80 @@ final class IndexedBitSet(
     if (i >= length) {
       rank(length - 1)
     } else {
-      val rank1 = bits(i >>> 10)
-
-      val rank2Index = i >>> 5
-      val rank2Word = bits(level2Start + (rank2Index / 3))
-      val rank2 = (rank2Word >>> (10 * (rank2Index % 3))) & 0x3FF
-
-      val rank3Word = bits(rawBitsStart + (i >>> 5))
-      val rank3Offset = i & 0x1F
-      val rank3 = rankWord(rank3Word, rank3Offset)
-
-      rank1 + rank2 + rank3
+      rank1(i) + rank2(i) + rank3(i)
     }
   }
+
+  private def rank1(i: Int): Int = {
+    bits(i >>> 10)
+  }
+
+  private def rank2(i: Int): Int = {
+    getLevel2(i >>> 5)
+  }
+
+  private def getLevel2(i: Int): Int = {
+    val word = bits(level2Start + (i / 3))
+    (word >>> (10 * (i % 3))) & 0x3FF
+  }
+
+  private def rank3(i: Int): Int = {
+    val rank3Word = bits(rawBitsStart + (i >>> 5))
+    val rank3Offset = i & 0x1F
+    rankWord(rank3Word, rank3Offset)
+  }
+
+  // Find the index in level1 where i would be located. This will return a
+  // value between [-1,level2Start), technically, but since bits(0) is always
+  // 0, this should return values between [0, level2Start).
+  // TODO: Property test this.
+  private[bonsai] final def search1(i: Int): Int = {
+    var l = 0
+    var r = level2Start - 1
+    while (l <= r) {
+      val c = (l + r) >>> 1
+      val x = bits(c)
+      if (x < i) {
+        l = c + 1
+      } else if (x >= i) {
+        r = c - 1
+      }
+    }
+    l - 1
+  }
+
+  // Returns the index into level 2.
+  private[bonsai] final def search2(block: Int, rank: Int): Int = {
+    val rank2 = rank - bits(block)
+    var l = 32 * block
+    var r = math.min(l + 32, ceilDiv(length, 32)) - 1
+    while (l <= r) {
+      val c = (l + r) >>> 1
+      val x = getLevel2(c)
+      if (x < rank2) {
+        l = c + 1
+      } else if (x >= rank2) {
+        r = c - 1
+      }
+    }
+    l - 1
+  }
+
+  private[bonsai] final def search3(blockOffset: Int, wordOffset: Int, rank: Int): Int = {
+    val rank3 = rank - bits(blockOffset) - getLevel2(wordOffset)
+    val word = bits(rawBitsStart + wordOffset)
+    selectWord(word, rank3)
+  }
+
+  def select(rank: Int): Int = {
+    val blockOffset = search1(rank)
+    val wordOffset = search2(blockOffset, rank)
+    val bitOffset = search3(blockOffset, wordOffset, rank)
+    32 * wordOffset + bitOffset
+  }
+
+  def bitCount: Int =
+    if (length > 0) rank(length - 1) else 0
 
   /**
    * Iterate over the Boolean values contained in the bitset.
@@ -160,11 +219,44 @@ object IndexedBitSet {
     }
 
   /**
-   * TODO: maybe tom can explain this?
+   * Returns the rank of the i-th bit in a 32-bit word.
    */
-  def rankWord(word: Int, i: Int): Int = {
+  private[bonsai] def rankWord(word: Int, i: Int): Int = {
     val mask = ~(-1L << ((i + 1))).toInt
     java.lang.Integer.bitCount(word & mask)
+  }
+
+  // rank [1,32]
+  private[bonsai] def selectWord(word: Int, rank: Int): Int = {
+    import java.lang.Integer.bitCount
+
+    // TODO: Should probably assert/elide.
+    require(bitCount(word) >= rank, "bit out of range")
+
+    var currRank = rank
+    var bits = word
+    var mask = (0x0000FFFF)
+    var width = 16
+    var i = 0
+    while (width > 0) {
+      val low = bits & mask
+      val lowRank = bitCount(low)
+      if (lowRank >= currRank) {
+        bits = low
+      } else {
+        bits = (bits & ~mask) >>> width
+        i += width
+        currRank = currRank - lowRank
+      }
+      width = width / 2
+      mask = mask >>> width
+    }
+
+    if (i >= 32) {
+      ???
+    } else {
+      i
+    }
   }
 
   /**
@@ -173,7 +265,7 @@ object IndexedBitSet {
    * For example, calling `ceilDiv(16, 4)` would return `4` whereas
    * `ceilDiv(17, 4)` would return `5`.
    */
-  def ceilDiv(n: Int, d: Int): Int =
+  private[bonsai] def ceilDiv(n: Int, d: Int): Int =
     ((n.toLong + d - 1) / d).toInt
 }
 

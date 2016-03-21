@@ -47,5 +47,28 @@ class IndexedBitSetSpec extends WordSpec with Matchers with Checkers {
         else bs.rank(i) == xs.filter(_ <= i).size
       }
     }
+
+    "rank(select(i)) == i" in {
+      check { (xs: BitSet) =>
+        val bs = IndexedBitSet.fromBitSet(xs)
+        xs.size == 0 || (1 to xs.size).forall { x => bs.rank(bs.select(x)) == x }
+      }
+    }
+
+    "select(i) is index of the i-th 1 bit" in {
+      check { (xs: BitSet) =>
+        val bs = IndexedBitSet.fromBitSet(xs)
+        xs.size == 0 || (1 to xs.size).forall { x =>
+          val i = bs.select(x)
+          (0 to i).map(bs(_)).filter(_ == true).size == x
+        }
+      }
+    }
+
+    "bitCount returns # of set bits" in {
+      check { (xs: BitSet) =>
+        xs.size == IndexedBitSet.fromBitSet(xs).bitCount
+      }
+    }
   }
 }
