@@ -7,9 +7,9 @@ import scala.reflect.ClassTag
 import com.stripe.bonsai.layout._
 
 trait Layout[A] {
-  def empty: Vec[A] = newBuilder.result()
-
   def newBuilder: VecBuilder[A]
+
+  def empty: Vec[A] = newBuilder.result()
 
   def zip[B](that: Layout[B]): Layout[(A, B)] = Layout.join(this, that)
 

@@ -5,20 +5,18 @@ import scala.collection.immutable.BitSet
 import scala.collection.mutable.{ Builder, ArrayBuilder }
 
 /**
- * IndexedBitSet is an immutable set for storing non-negative integer
- * values.
- * 
- * This data structure stores non-negative integers. It has O(1)
- * lookup and rank operations. It also supports O(polylog n) select
- * operations, which are not currently implemented.
+ * IndexedBitSet is an immutable set for storing non-negative integer values.
  *
- * To support fast rank, this bitset requires ~1.37n bits, rather than
- * the n bits that other bitsets (e.g. `scala.BitSet`) would use.
+ * This data structure stores non-negative integers. It has O(1) lookup and
+ * rank operations. It also supports O(polylog n) select operations.
  *
- * Unlike some immutable structures, there is no form of structural
- * sharing here. Thus, the only way to "modify" one of these
- * structures is to build a new one that has the desired modifications
- * (which will not be efficient if done frequently).
+ * To support fast rank and select, this bitset requires ~1.37n bits, rather
+ * than the n bits that other bitsets (e.g. `scala.BitSet`) would use.
+ *
+ * Unlike some immutable structures, there is no form of structural sharing
+ * here. Thus, the only way to "modify" one of these structures is to build a
+ * new one that has the desired modifications (which will not be efficient if
+ * done frequently).
  */
 final class IndexedBitSet(
   val bits: Array[Int],
@@ -26,7 +24,7 @@ final class IndexedBitSet(
   val level2Start: Int,
   val rawBitsStart: Int
 ) {
-  import IndexedBitSet.rankWord
+  import IndexedBitSet.{rankWord, selectWord, ceilDiv}
 
   /**
    * Test if `i` is contained in this bitset.
@@ -38,6 +36,13 @@ final class IndexedBitSet(
     val word = bits(wordOffset)
     val bitOffset = i & 0x1F
     ((word >>> bitOffset) & 1) != 0
+  }
+
+  // Returns the 10-bit block-relative rank stored in the level 2 "index".
+  // We pack in 3 ranks per 32-bit word, so getting them is a bit complicated.
+  private def getLevel2(i: Int): Int = {
+    val word = bits(level2Start + (i / 3))
+    (word >>> (10 * (i % 3))) & 0x3FF
   }
 
   /**
@@ -52,19 +57,98 @@ final class IndexedBitSet(
     if (i >= length) {
       rank(length - 1)
     } else {
-      val rank1 = bits(i >>> 10)
-
-      val rank2Index = i >>> 5
-      val rank2Word = bits(level2Start + (rank2Index / 3))
-      val rank2 = (rank2Word >>> (10 * (rank2Index % 3))) & 0x3FF
-
-      val rank3Word = bits(rawBitsStart + (i >>> 5))
-      val rank3Offset = i & 0x1F
-      val rank3 = rankWord(rank3Word, rank3Offset)
-
-      rank1 + rank2 + rank3
+      rank1(i) + rank2(i) + rank3(i)
     }
   }
+
+  // Returns the initial rank of the block storing bit i.
+  private def rank1(i: Int): Int = {
+    bits(i >>> 10)
+  }
+
+  // Returns the block-relative rank of the word storing bit i.
+  private def rank2(i: Int): Int = {
+    getLevel2(i >>> 5)
+  }
+
+  // Returns the word-relative rank of bit i.
+  private def rank3(i: Int): Int = {
+    val rank3Word = bits(rawBitsStart + (i >>> 5))
+    val rank3Offset = i & 0x1F
+    rankWord(rank3Word, rank3Offset)
+  }
+
+  /**
+   * Returns the index of the `i`-th set bit in this bitset. This has the
+   * property that `bitset.rank(bitset.select(i)) = i` and
+   * `bitset(bitset.select(i)) == true`.
+   *
+   * @param i an integer in `[1, bitset.bitCount]`
+   * @returns an integer
+   */
+  def select(i: Int): Int = {
+    val blockOffset = search1(i)
+    val wordOffset = search2(blockOffset, i)
+    val bitOffset = search3(blockOffset, wordOffset, i)
+    32 * wordOffset + bitOffset
+  }
+
+  // Find the index in level1 where i would be located. This will return a
+  // value between [-1,level2Start), technically, but since bits(0) is always
+  // 0, this should return values between [0, level2Start). The main difference
+  // from Java's Arrays.binarySearch is that we don't return early if we find
+  // a block rank equal to i, since, if there are multiple blocks with the rank
+  // i, we need to ensure we return the last valid block. Arrays.binarySearch
+  // makes no guarantees about which element will be chosen.
+  private def search1(i: Int): Int = {
+    var l: Int = 0
+    var r: Int = level2Start - 1
+    while (l <= r) {
+      val c = (l + r) >>> 1
+      val x = bits(c)
+      if (x < i) {
+        l = c + 1
+      } else if (x >= i) {
+        r = c - 1
+      }
+    }
+    l - 1
+  }
+
+  // Returns the index into level 2 where the bit with the given rank is
+  // located. Note that the index returned by this is relative to the start
+  // of the level 2 index, NOT the block. Hence, the word that contains the
+  // set bit with rank `rank` is `bits(rawBitsStart + search2(block, rank))`.
+  // The rank should be the absolute rank in the bitset.
+  private def search2(block: Int, rank: Int): Int = {
+    val rank2 = rank - bits(block)
+    var l: Int = 32 * block
+    var r: Int = math.min(l + 32, ceilDiv(length, 32)) - 1
+    while (l <= r) {
+      val c = (l + r) >>> 1
+      val x = getLevel2(c)
+      if (x < rank2) {
+        l = c + 1
+      } else if (x >= rank2) {
+        r = c - 1
+      }
+    }
+    l - 1
+  }
+
+  // Returns index of the bit in the given word (given by wordOffset) with rank
+  // `rank`. The rank should be the absolute rank in the bitset.
+  private def search3(blockOffset: Int, wordOffset: Int, rank: Int): Int = {
+    val rank3 = rank - bits(blockOffset) - getLevel2(wordOffset)
+    val word = bits(rawBitsStart + wordOffset)
+    selectWord(word, rank3)
+  }
+
+  /**
+   * Returns the number of set 1 bits in this bitset.
+   */
+  def bitCount: Int =
+    if (length > 0) rank(length - 1) else 0
 
   /**
    * Iterate over the Boolean values contained in the bitset.
@@ -81,7 +165,7 @@ final class IndexedBitSet(
    */
   def toBitSet: BitSet = {
     val b = BitSet.newBuilder
-    var i = 0
+    var i: Int = 0
     val it = iterator
     while (it.hasNext) {
       if (it.next) b += i
@@ -160,11 +244,78 @@ object IndexedBitSet {
     }
 
   /**
-   * TODO: maybe tom can explain this?
+   * Returns the rank of the i-th bit in a 32-bit word.
    */
   def rankWord(word: Int, i: Int): Int = {
     val mask = ~(-1L << ((i + 1))).toInt
     java.lang.Integer.bitCount(word & mask)
+  }
+
+  /**
+   * Returns the index of the i-th set bit in a 32-bit word.
+   *
+   * @param word a 32-bit word to search
+   * @param rank a value in [1,32] (inclusive)
+   */
+  def selectWord(word: Int, rank: Int): Int = {
+
+    // This first part is basically the bitCount algorithm, however we keep a
+    // copy of the intermediate states, which we'll use later.
+
+    var sum1: Int  = word
+    var sum2: Int  = (sum1  & 0x55555555) + ((sum1  >>>  1) & 0x55555555)
+    var sum4: Int  = (sum2  & 0x33333333) + ((sum2  >>>  2) & 0x33333333)
+    var sum8: Int  = (sum4  & 0x0F0F0F0F) + ((sum4  >>>  4) & 0x0F0F0F0F)
+    val sum16: Int = (sum8  & 0x00FF00FF) + ((sum8  >>>  8) & 0x00FF00FF)
+    val sum32: Int = (sum16 & 0x0000FFFF) + ((sum16 >>> 16) & 0x0000FFFF)
+
+    // This shouldn't come up in IndexedBitSet, but might as well play it safe.
+    if (sum32 < rank)
+      throw new IllegalArgumentException("bit out of range")
+
+    // We basically perform a binary search for the the index with the given
+    // rank. We use the intermediate states of the bit count above to do this
+    // quickly. Starting from the half-word counts, we can determine which half
+    // contains the rank-th set bit. If its the lower half we don't have to do
+    // anything, otherwise we basically shift everything over by 16 (8, 4, 2, 1)
+    // bits and try again, but this time using only the lower 16 (8, 4, 2, 1)
+    // bits. The variable i maintains a lowerbound on the index to be returned.
+    // Once we've gone through all available bit widths (16, 8, 4, 2, 1) it'll
+    // point to the rank-th set bit.
+
+    var i: Int = 0
+    var currRank: Int = rank
+    if ((sum16 & 0x0000FFFF) < currRank) {
+      i += 16
+      currRank -= sum16 & 0x0000FFFF
+      sum8 = sum8 >>> 16
+      sum4 = sum4 >>> 16
+      sum2 = sum2 >>> 16
+      sum1 = sum1 >>> 16
+    }
+    if ((sum8 & 0x000000FF) < currRank) {
+      i += 8
+      currRank -= sum8 & 0x000000FF
+      sum4 = sum4 >>> 8
+      sum2 = sum2 >>> 8
+      sum1 = sum1 >>> 8
+    }
+    if ((sum4 & 0x0000000F) < currRank) {
+      i += 4
+      currRank -= sum4 & 0x0000000F
+      sum2 = sum2 >>> 4
+      sum1 = sum1 >>> 4
+    }
+    if ((sum2 & 0x00000003) < currRank) {
+      i += 2
+      currRank -= sum2 & 0x00000003
+      sum1 = sum1 >>> 2
+    }
+    if ((sum1 & 0x00000001) < currRank) {
+      i += 1
+    }
+
+    i
   }
 
   /**
@@ -173,7 +324,7 @@ object IndexedBitSet {
    * For example, calling `ceilDiv(16, 4)` would return `4` whereas
    * `ceilDiv(17, 4)` would return `5`.
    */
-  def ceilDiv(n: Int, d: Int): Int =
+  private[bonsai] def ceilDiv(n: Int, d: Int): Int =
     ((n.toLong + d - 1) / d).toInt
 }
 
@@ -202,13 +353,13 @@ class IndexedBitSetBuilder extends Builder[Boolean, IndexedBitSet] {
 
   import IndexedBitSet.ceilDiv
 
-  var cnt = 0
-  var k = 0
-  var m = 0.toShort
-  var head = 0
-  val bits = ArrayBuilder.make[Int]()
-  val level1 = ArrayBuilder.make[Int]()
-  val level2 = ArrayBuilder.make[Short]()
+  var cnt: Int = 0
+  var k: Int = 0
+  var m: Short = 0.toShort
+  var head: Int = 0
+  val bits: ArrayBuilder[Int] = ArrayBuilder.make[Int]()
+  val level1: ArrayBuilder[Int] = ArrayBuilder.make[Int]()
+  val level2: ArrayBuilder[Short] = ArrayBuilder.make[Short]()
 
   /**
    * Append another value to to the bitset.
@@ -284,8 +435,8 @@ class IndexedBitSetBuilder extends Builder[Boolean, IndexedBitSet] {
     Array.copy(rawLvl1, 0, bitString, 0, rawLvl1.length)
 
     // Copy level 2 dictionary.
-    var i = rawLvl1.length
-    var j = 0
+    var i: Int = rawLvl1.length
+    var j: Int = 0
     while (j < rawLvl2.length) {
       // We store a value between [0, 1024), so we need 10 bits. This means we
       // can stuff in 3 values per Int (if we're aligning on Int boundaries).

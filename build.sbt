@@ -25,4 +25,10 @@ lazy val bonsaiCore = project.
 
 lazy val bonsaiExample = project.
   in(file("bonsai-example")).
-  dependsOn(bonsaiCore)
+  dependsOn(bonsaiCore).
+  settings(unpublished: _*)
+
+lazy val bonsaiBenchmark = project.
+  in(file("bonsai-benchmark")).
+  dependsOn(bonsaiCore).
+  settings(unpublished: _*)

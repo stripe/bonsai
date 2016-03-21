@@ -47,5 +47,43 @@ class IndexedBitSetSpec extends WordSpec with Matchers with Checkers {
         else bs.rank(i) == xs.filter(_ <= i).size
       }
     }
+
+    "rank(select(i)) == i" in {
+      check { (xs: BitSet) =>
+        val bs = IndexedBitSet.fromBitSet(xs)
+        xs.size == 0 || (1 to xs.size).forall { x =>
+          bs(bs.select(x)) == true && bs.rank(bs.select(x)) == x
+        }
+      }
+    }
+
+    "select(i) is index of the i-th 1 bit" in {
+      check { (xs: BitSet) =>
+        val bs = IndexedBitSet.fromBitSet(xs)
+        xs.size == 0 || (1 to xs.size).forall { x =>
+          val i = bs.select(x)
+          (0 to i).map(bs(_)).filter(_ == true).size == x
+        }
+      }
+    }
+
+    "bitCount returns # of set bits" in {
+      check { (xs: BitSet) =>
+        xs.size == IndexedBitSet.fromBitSet(xs).bitCount
+      }
+    }
+  }
+
+  "selectWord" should {
+    "return the index of the i-th set bit" in {
+      import IndexedBitSet.{ rankWord, selectWord }
+      check { (x: Int) =>
+        val setBits = java.lang.Integer.bitCount(x)
+        (setBits == 0) || (1 to setBits).forall { i =>
+          val j = selectWord(x, i)
+          rankWord(x, j) == i && (x & (1 << j)) != 0
+        }
+      }
+    }
   }
 }
