@@ -101,8 +101,8 @@ final class IndexedBitSet(
   // i, we need to ensure we return the last valid block. Arrays.binarySearch
   // makes no guarantees about which element will be chosen.
   private def search1(i: Int): Int = {
-    var l = 0
-    var r = level2Start - 1
+    var l: Int = 0
+    var r: Int = level2Start - 1
     while (l <= r) {
       val c = (l + r) >>> 1
       val x = bits(c)
@@ -122,8 +122,8 @@ final class IndexedBitSet(
   // The rank should be the absolute rank in the bitset.
   private def search2(block: Int, rank: Int): Int = {
     val rank2 = rank - bits(block)
-    var l = 32 * block
-    var r = math.min(l + 32, ceilDiv(length, 32)) - 1
+    var l: Int = 32 * block
+    var r: Int = math.min(l + 32, ceilDiv(length, 32)) - 1
     while (l <= r) {
       val c = (l + r) >>> 1
       val x = getLevel2(c)
@@ -165,7 +165,7 @@ final class IndexedBitSet(
    */
   def toBitSet: BitSet = {
     val b = BitSet.newBuilder
-    var i = 0
+    var i: Int = 0
     val it = iterator
     while (it.hasNext) {
       if (it.next) b += i
@@ -263,11 +263,11 @@ object IndexedBitSet {
     // TODO: Should probably assert/elide.
     require(bitCount(word) >= rank, "bit out of range")
 
-    var currRank = rank
-    var bits = word
-    var mask = (0x0000FFFF)
-    var width = 16
-    var i = 0
+    var currRank: Int = rank
+    var bits: Int = word
+    var mask: Int = (0x0000FFFF)
+    var width: Int = 16
+    var i: Int = 0
     while (width > 0) {
       val low = bits & mask
       val lowRank = bitCount(low)
@@ -319,13 +319,13 @@ class IndexedBitSetBuilder extends Builder[Boolean, IndexedBitSet] {
 
   import IndexedBitSet.ceilDiv
 
-  var cnt = 0
-  var k = 0
-  var m = 0.toShort
-  var head = 0
-  val bits = ArrayBuilder.make[Int]()
-  val level1 = ArrayBuilder.make[Int]()
-  val level2 = ArrayBuilder.make[Short]()
+  var cnt: Int = 0
+  var k: Int = 0
+  var m: Short = 0.toShort
+  var head: Int = 0
+  val bits: ArrayBuilder[Int] = ArrayBuilder.make[Int]()
+  val level1: ArrayBuilder[Int] = ArrayBuilder.make[Int]()
+  val level2: ArrayBuilder[Short] = ArrayBuilder.make[Short]()
 
   /**
    * Append another value to to the bitset.
@@ -401,8 +401,8 @@ class IndexedBitSetBuilder extends Builder[Boolean, IndexedBitSet] {
     Array.copy(rawLvl1, 0, bitString, 0, rawLvl1.length)
 
     // Copy level 2 dictionary.
-    var i = rawLvl1.length
-    var j = 0
+    var i: Int = rawLvl1.length
+    var j: Int = 0
     while (j < rawLvl2.length) {
       // We store a value between [0, 1024), so we need 10 bits. This means we
       // can stuff in 3 values per Int (if we're aligning on Int boundaries).
