@@ -246,7 +246,7 @@ object IndexedBitSet {
   /**
    * Returns the rank of the i-th bit in a 32-bit word.
    */
-  private[bonsai] def rankWord(word: Int, i: Int): Int = {
+  def rankWord(word: Int, i: Int): Int = {
     val mask = ~(-1L << ((i + 1))).toInt
     java.lang.Integer.bitCount(word & mask)
   }
@@ -257,30 +257,64 @@ object IndexedBitSet {
    * @param word a 32-bit word to search
    * @param rank a value in [1,32] (inclusive)
    */
-  private[bonsai] def selectWord(word: Int, rank: Int): Int = {
-    import java.lang.Integer.bitCount
+  def selectWord(word: Int, rank: Int): Int = {
 
-    // TODO: Should probably assert/elide.
-    require(bitCount(word) >= rank, "bit out of range")
+    // This first part is basically the bitCount algorithm, however we keep a
+    // copy of the intermediate states, which we'll use later.
 
-    var currRank: Int = rank
-    var bits: Int = word
-    var mask: Int = (0x0000FFFF)
-    var width: Int = 16
+    var sum1: Int  = word
+    var sum2: Int  = (sum1  & 0x55555555) + ((sum1  >>>  1) & 0x55555555)
+    var sum4: Int  = (sum2  & 0x33333333) + ((sum2  >>>  2) & 0x33333333)
+    var sum8: Int  = (sum4  & 0x0F0F0F0F) + ((sum4  >>>  4) & 0x0F0F0F0F)
+    val sum16: Int = (sum8  & 0x00FF00FF) + ((sum8  >>>  8) & 0x00FF00FF)
+    val sum32: Int = (sum16 & 0x0000FFFF) + ((sum16 >>> 16) & 0x0000FFFF)
+
+    // This shouldn't come up in IndexedBitSet, but might as well play it safe.
+    if (sum32 < rank)
+      throw new IllegalArgumentException("bit out of range")
+
+    // We basically perform a binary search for the the index with the given
+    // rank. We use the intermediate states of the bit count above to do this
+    // quickly. Starting from the half-word counts, we can determine which half
+    // contains the rank-th set bit. If its the lower half we don't have to do
+    // anything, otherwise we basically shift everything over by 16 (8, 4, 2, 1)
+    // bits and try again, but this time using only the lower 16 (8, 4, 2, 1)
+    // bits. The variable i maintains a lowerbound on the index to be returned.
+    // Once we've gone through all available bit widths (16, 8, 4, 2, 1) it'll
+    // point to the rank-th set bit.
+
     var i: Int = 0
-    while (width > 0) {
-      val low = bits & mask
-      val lowRank = bitCount(low)
-      if (lowRank >= currRank) {
-        bits = low
-      } else {
-        bits = (bits & ~mask) >>> width
-        i += width
-        currRank = currRank - lowRank
-      }
-      width = width / 2
-      mask = mask >>> width
+    var currRank: Int = rank
+    if ((sum16 & 0x0000FFFF) < currRank) {
+      i += 16
+      currRank -= sum16 & 0x0000FFFF
+      sum8 = sum8 >>> 16
+      sum4 = sum4 >>> 16
+      sum2 = sum2 >>> 16
+      sum1 = sum1 >>> 16
     }
+    if ((sum8 & 0x000000FF) < currRank) {
+      i += 8
+      currRank -= sum8 & 0x000000FF
+      sum4 = sum4 >>> 8
+      sum2 = sum2 >>> 8
+      sum1 = sum1 >>> 8
+    }
+    if ((sum4 & 0x0000000F) < currRank) {
+      i += 4
+      currRank -= sum4 & 0x0000000F
+      sum2 = sum2 >>> 4
+      sum1 = sum1 >>> 4
+    }
+    if ((sum2 & 0x00000003) < currRank) {
+      i += 2
+      currRank -= sum2 & 0x00000003
+      sum1 = sum1 >>> 2
+    }
+    if ((sum1 & 0x00000001) < currRank) {
+      i += 1
+    }
+
     i
   }
 
