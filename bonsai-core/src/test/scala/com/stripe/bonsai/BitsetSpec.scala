@@ -51,7 +51,9 @@ class IndexedBitSetSpec extends WordSpec with Matchers with Checkers {
     "rank(select(i)) == i" in {
       check { (xs: BitSet) =>
         val bs = IndexedBitSet.fromBitSet(xs)
-        xs.size == 0 || (1 to xs.size).forall { x => bs.rank(bs.select(x)) == x }
+        xs.size == 0 || (1 to xs.size).forall { x =>
+          bs(bs.select(x)) == true && bs.rank(bs.select(x)) == x
+        }
       }
     }
 

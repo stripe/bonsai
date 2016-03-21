@@ -38,6 +38,13 @@ final class IndexedBitSet(
     ((word >>> bitOffset) & 1) != 0
   }
 
+  // Returns the 10-bit block-relative rank stored in the level 2 "index".
+  // We pack in 3 ranks per 32-bit word, so getting them is a bit complicated.
+  private def getLevel2(i: Int): Int = {
+    val word = bits(level2Start + (i / 3))
+    (word >>> (10 * (i % 3))) & 0x3FF
+  }
+
   /**
    * Return the number of 1 bits at-or-below `i`.
    *
@@ -54,30 +61,46 @@ final class IndexedBitSet(
     }
   }
 
+  // Returns the initial rank of the block storing bit i.
   private def rank1(i: Int): Int = {
     bits(i >>> 10)
   }
 
+  // Returns the block-relative rank of the word storing bit i.
   private def rank2(i: Int): Int = {
     getLevel2(i >>> 5)
   }
 
-  private def getLevel2(i: Int): Int = {
-    val word = bits(level2Start + (i / 3))
-    (word >>> (10 * (i % 3))) & 0x3FF
-  }
-
+  // Returns the word-relative rank of bit i.
   private def rank3(i: Int): Int = {
     val rank3Word = bits(rawBitsStart + (i >>> 5))
     val rank3Offset = i & 0x1F
     rankWord(rank3Word, rank3Offset)
   }
 
+  /**
+   * Returns the index of the `i`-th set bit in this bitset. This has the
+   * property that `bitset.rank(bitset.select(i)) = i` and
+   * `bitset(bitset.select(i)) == true`.
+   *
+   * @param i an integer in `[1, bitset.bitCount]`
+   * @returns an integer
+   */
+  def select(i: Int): Int = {
+    val blockOffset = search1(i)
+    val wordOffset = search2(blockOffset, i)
+    val bitOffset = search3(blockOffset, wordOffset, i)
+    32 * wordOffset + bitOffset
+  }
+
   // Find the index in level1 where i would be located. This will return a
   // value between [-1,level2Start), technically, but since bits(0) is always
-  // 0, this should return values between [0, level2Start).
-  // TODO: Property test this.
-  private[bonsai] final def search1(i: Int): Int = {
+  // 0, this should return values between [0, level2Start). The main difference
+  // from Java's Arrays.binarySearch is that we don't return early if we find
+  // a block rank equal to i, since, if there are multiple blocks with the rank
+  // i, we need to ensure we return the last valid block. Arrays.binarySearch
+  // makes no guarantees about which element will be chosen.
+  private def search1(i: Int): Int = {
     var l = 0
     var r = level2Start - 1
     while (l <= r) {
@@ -92,8 +115,12 @@ final class IndexedBitSet(
     l - 1
   }
 
-  // Returns the index into level 2.
-  private[bonsai] final def search2(block: Int, rank: Int): Int = {
+  // Returns the index into level 2 where the bit with the given rank is
+  // located. Note that the index returned by this is relative to the start
+  // of the level 2 index, NOT the block. Hence, the word that contains the
+  // set bit with rank `rank` is `bits(rawBitsStart + search2(block, rank))`.
+  // The rank should be the absolute rank in the bitset.
+  private def search2(block: Int, rank: Int): Int = {
     val rank2 = rank - bits(block)
     var l = 32 * block
     var r = math.min(l + 32, ceilDiv(length, 32)) - 1
@@ -109,19 +136,17 @@ final class IndexedBitSet(
     l - 1
   }
 
-  private[bonsai] final def search3(blockOffset: Int, wordOffset: Int, rank: Int): Int = {
+  // Returns index of the bit in the given word (given by wordOffset) with rank
+  // `rank`. The rank should be the absolute rank in the bitset.
+  private def search3(blockOffset: Int, wordOffset: Int, rank: Int): Int = {
     val rank3 = rank - bits(blockOffset) - getLevel2(wordOffset)
     val word = bits(rawBitsStart + wordOffset)
     selectWord(word, rank3)
   }
 
-  def select(rank: Int): Int = {
-    val blockOffset = search1(rank)
-    val wordOffset = search2(blockOffset, rank)
-    val bitOffset = search3(blockOffset, wordOffset, rank)
-    32 * wordOffset + bitOffset
-  }
-
+  /**
+   * Returns the number of set 1 bits in this bitset.
+   */
   def bitCount: Int =
     if (length > 0) rank(length - 1) else 0
 
@@ -226,7 +251,12 @@ object IndexedBitSet {
     java.lang.Integer.bitCount(word & mask)
   }
 
-  // rank [1,32]
+  /**
+   * Returns the index of the i-th set bit in a 32-bit word.
+   *
+   * @param word a 32-bit word to search
+   * @param rank a value in [1,32] (inclusive)
+   */
   private[bonsai] def selectWord(word: Int, rank: Int): Int = {
     import java.lang.Integer.bitCount
 
@@ -251,12 +281,7 @@ object IndexedBitSet {
       width = width / 2
       mask = mask >>> width
     }
-
-    if (i >= 32) {
-      ???
-    } else {
-      i
-    }
+    i
   }
 
   /**
