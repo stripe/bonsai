@@ -4,10 +4,16 @@ import scala.language.implicitConversions
 
 import scala.reflect.ClassTag
 
+import java.io.{ DataOutput, DataInput }
+
 import com.stripe.bonsai.layout._
 
 trait Layout[A] {
   def newBuilder: VecBuilder[A]
+
+  def write(vec: Vec[A], out: DataOutput): Unit
+
+  def read(in: DataInput): Vec[A]
 
   def empty: Vec[A] = newBuilder.result()
 
@@ -16,19 +22,23 @@ trait Layout[A] {
   def transform[B](f: A => B, g: B => A): Layout[B] = Layout.transform(this)(f, g)
 
   def optional: Layout[Option[A]] = Layout.optional(this)
+
+  def isSafeToCast(vec: Vec[_]): Boolean
 }
 
-trait LayoutLow {
-  implicit def denseArray[A: ClassTag]: Layout[A] = new DenseArrayLayout[A]
-}
-
-object Layout extends LayoutLow {
+object Layout {
   def apply[A](implicit layout: Layout[A]): Layout[A] = layout
 
-  implicit def optional[A](implicit layout: Layout[A]): Layout[Option[A]] = new OptionalLayout(layout)
+  implicit def denseBooleanLayout: Layout[Boolean] = DenseBooleanLayout
+  implicit def denseByteLayout: Layout[Byte] = DenseByteLayout
+  implicit def denseShortLayout: Layout[Short] = DenseShortLayout
+  implicit def denseIntLayout: Layout[Int] = DenseIntLayout
+  implicit def denseLongLayout: Layout[Long] = DenseLongLayout
+  implicit def denseFloatLayout: Layout[Float] = DenseFloatLayout
+  implicit def denseDoubleLayout: Layout[Double] = DenseDoubleLayout
+  implicit def denseCharLayout: Layout[Char] = DenseCharLayout
 
-  def transform[A, B](layout: Layout[A])(f: A => B, g: B => A): Layout[B] =
-    new TransformedLayout(layout, g, f)
+  implicit def optional[A](implicit layout: Layout[A]): Layout[Option[A]] = new OptionalLayout(layout)
 
   /**
    * Returns a data store that can store either A or B and requires only
@@ -39,4 +49,7 @@ object Layout extends LayoutLow {
 
   implicit def join[A, B](implicit lhs: Layout[A], rhs: Layout[B]): Layout[(A, B)] =
     new ProductLayout[A, B, (A, B)](lhs, rhs, identity, _ -> _)
+
+  def transform[A, B](layout: Layout[A])(f: A => B, g: B => A): Layout[B] =
+    new TransformedLayout(layout, g, f)
 }

@@ -4,6 +4,8 @@ import scala.language.existentials
 
 import scala.collection.immutable.Queue
 
+import java.io.{ DataInput, DataOutput }
+
 import com.stripe.bonsai.layout.Vec
 
 /**
@@ -203,4 +205,21 @@ object FullBinaryTree {
       val x2 = reduceNode(tree, tree.bitset.rank(2 * index + 2) - 1)(f)(g)
       f(label, x1, x2)
     }
+
+  def write[A: Layout, B: Layout](tree: FullBinaryTree[A, B], out: DataOutput): Unit = {
+    Layout[A].write(tree.branchLabels, out)
+    Layout[B].write(tree.leafLabels, out)
+    IndexedBitSet.write(out, tree.isLeaf)
+    out.writeInt(tree.bitset.length)
+    IndexedBitSet.write(out, tree.bitset)
+  }
+
+  def read[A: Layout, B: Layout](in: DataInput): FullBinaryTree[A, B] = {
+    val branchLabels = Layout[A].read(in)
+    val leafLabels = Layout[B].read(in)
+    val isLeaf = IndexedBitSet.read(in, branchLabels.size + leafLabels.size)
+    val bitsetLength = in.readInt()
+    val bitset = IndexedBitSet.read(in, bitsetLength)
+    new FullBinaryTree(bitset, isLeaf, branchLabels, leafLabels)
+  }
 }

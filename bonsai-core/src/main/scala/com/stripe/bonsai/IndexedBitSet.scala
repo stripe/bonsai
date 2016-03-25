@@ -326,6 +326,56 @@ object IndexedBitSet {
    */
   private[bonsai] def ceilDiv(n: Int, d: Int): Int =
     ((n.toLong + d - 1) / d).toInt
+
+  /**
+   * Writes out the raw bits from an [[IndexedBitSet]] to a `DataOutput` as
+   * bytes, LSB. This will write out `ceil(bitset.length / 8)` bytes.
+   *
+   * @param out    the output to write bytes to
+   * @param bitset the bitset to write out
+   */
+  def write(out: java.io.DataOutput, bitset: IndexedBitSet): Unit = {
+    val bits = bitset.bits
+    val rawBitsStart = bitset.rawBitsStart
+    def getByte(i: Int): Int = {
+      val wordOffset = i >>> 2
+      val bitOffset = (i & 3) << 3
+      val word = bits(rawBitsStart + wordOffset)
+      (word >>> bitOffset) & 0xFF
+    }
+
+    val byteLen = ceilDiv(bitset.length, 8)
+    var i = 0
+    while (i < byteLen) {
+      out.writeByte(getByte(i))
+      i += 1
+    }
+  }
+
+  /**
+   * Read in a IndexedBitSet of the given length from a `DataInput`. This
+   * expects the bitset to be encoded in bytes, LSB. This will consume
+   * ceil(length / 8) bytes from the `DataInput`.
+   *
+   * @param in     the input to read bytes from
+   * @param length the length of the bitset to read, in bits
+   */
+  def read(in: java.io.DataInput, length: Int): IndexedBitSet = {
+    val byteLen = ceilDiv(length, 8)
+    val bldr = new IndexedBitSetBuilder
+    var i = 0
+    while (i < byteLen) {
+      val byte = in.readByte()
+      val byteLen = math.min(length - i * 8, 8)
+      var j = 0
+      while (j < byteLen) {
+        bldr += (byte & (1 << j)) != 0
+        j += 1
+      }
+      i += 1
+    }
+    bldr.result()
+  }
 }
 
 /**
