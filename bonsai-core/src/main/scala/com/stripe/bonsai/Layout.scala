@@ -29,6 +29,7 @@ trait Layout[A] {
 object Layout {
   def apply[A](implicit layout: Layout[A]): Layout[A] = layout
 
+  implicit def unitLayout: Layout[Unit] = UnitLayout
   implicit def denseBooleanLayout: Layout[Boolean] = DenseBooleanLayout
   implicit def denseByteLayout: Layout[Byte] = DenseByteLayout
   implicit def denseShortLayout: Layout[Short] = DenseShortLayout
@@ -37,6 +38,7 @@ object Layout {
   implicit def denseFloatLayout: Layout[Float] = DenseFloatLayout
   implicit def denseDoubleLayout: Layout[Double] = DenseDoubleLayout
   implicit def denseCharLayout: Layout[Char] = DenseCharLayout
+  implicit def denseStringLayout: Layout[String] = DenseStringLayout
 
   implicit def optional[A](implicit layout: Layout[A]): Layout[Option[A]] = new OptionalLayout(layout)
 
@@ -49,6 +51,9 @@ object Layout {
 
   implicit def join[A, B](implicit lhs: Layout[A], rhs: Layout[B]): Layout[(A, B)] =
     new ProductLayout[A, B, (A, B)](lhs, rhs, identity, _ -> _)
+
+  implicit def join3[A, B, C](implicit as: Layout[A], bs: Layout[B], cs: Layout[C]): Layout[(A, B, C)] =
+    new Product3Layout[A, B, C, (A, B, C)](as, bs, cs, identity, (_, _, _))
 
   def transform[A, B](layout: Layout[A])(f: A => B, g: B => A): Layout[B] =
     new TransformedLayout(layout, g, f)

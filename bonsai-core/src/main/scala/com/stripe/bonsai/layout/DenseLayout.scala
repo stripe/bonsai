@@ -11,7 +11,8 @@ import java.io.{ DataOutput, DataInput }
 
 sealed abstract class DenseArrayLayout[A: ClassTag](
   cons: Array[A] => Vec[A],
-  readArray: (DataInput, Array[A]) => Unit
+  readArray: (DataInput, Array[A]) => Unit,
+  writeArray: (Array[A], DataOutput) => Unit
 ) extends Layout[A] {
   def newBuilder =
     new DenseBuilder[A, Array[A]](ArrayBuilder.make[A](), cons)
@@ -25,86 +26,93 @@ sealed abstract class DenseArrayLayout[A: ClassTag](
   }
 
   def read(in: DataInput): Vec[A] = {
-    val length = in.readInt()
-    val arr = classTag[A].newArray(length)
-    readArray(in, arr)
-    cons(arr)
+    in.readByte() match {
+      case DenseArrayLayout.PlainEncoding =>
+        val length = in.readInt()
+        val arr = classTag[A].newArray(length)
+        readArray(in, arr)
+        cons(arr)
+
+      case DenseArrayLayout.ByteDictionaryEncoding =>
+        val dictLen = in.readInt()
+        require(dictLen <= 255)
+        val dict: Array[A] = new Array[A](dictLen)
+        readArray(in, dict)
+        val encoding: Array[Byte] = new Array[Byte](in.readInt())
+        DenseArrayLayout.readByte(in, encoding)
+        // Ideally we would just use the dict encoding directly, but
+        // this will suffice for now.
+        val arr: Array[A] = new Array[A](encoding.length)
+        var i = 0
+        while (i < arr.length) {
+          arr(i) = dict(encoding(i).toInt & 0xFF)
+          i += 1
+        }
+        cons(arr)
+
+      case _ =>
+        throw new java.io.IOException("unsupported encoding for dense array layout")
+    }
   }
 
   def write(vec: Vec[A], out: DataOutput): Unit = {
-    val arr: Array[_] = vec match {
+    val arr: Array[A] = vec match {
       case (vec: DenseVec[_]) => vec.vec
       case _ => vec.toArray
     }
 
-    out.writeInt(arr.length)
+    dictionaryFor(arr) match {
+      case Some((dict, encoding)) =>
+        out.writeByte(DenseArrayLayout.ByteDictionaryEncoding)
+        out.writeInt(dict.length)
+        writeArray(dict, out)
+        out.writeInt(encoding.length)
+        DenseArrayLayout.writeByte(encoding, out)
 
-    arr match {
-      case arr: Array[Boolean] =>
-        var i = 0
-        while (i < arr.length) {
-          val b: Boolean = arr(i)
-          out.writeBoolean(arr(i))
-          i += 1
-        }
-
-      case arr: Array[Byte] =>
-        var i = 0
-        while (i < arr.length) {
-          out.writeByte(arr(i))
-          i += 1
-        }
-
-      case arr: Array[Short] =>
-        var i = 0
-        while (i < arr.length) {
-          out.writeShort(arr(i))
-          i += 1
-        }
-
-      case arr: Array[Int] =>
-        var i = 0
-        while (i < arr.length) {
-          out.writeInt(arr(i))
-          i += 1
-        }
-
-      case arr: Array[Long] =>
-        var i = 0
-        while (i < arr.length) {
-          out.writeLong(arr(i))
-          i += 1
-        }
-
-      case arr: Array[Float] =>
-        var i = 0
-        while (i < arr.length) {
-          out.writeFloat(arr(i))
-          i += 1
-        }
-
-      case arr: Array[Double] =>
-        var i = 0
-        while (i < arr.length) {
-          out.writeDouble(arr(i))
-          i += 1
-        }
-
-      case arr: Array[Char] =>
-        var i = 0
-        while (i < arr.length) {
-          out.writeChar(arr(i))
-          i += 1
-        }
+      case None =>
+        out.writeByte(DenseArrayLayout.PlainEncoding)
+        out.writeInt(arr.length)
+        writeArray(arr, out)
     }
+  }
+
+  private def dictionaryFor(arr: Array[A]): Option[(Array[A], Array[Byte])] = {
+    import scala.collection.mutable.HashMap
+    val dict: HashMap[A, Int] = new HashMap
+    val encoding: Array[Byte] = new Array[Byte](arr.length)
+    var i: Int = 0
+    while (i < arr.length) {
+      val a = arr(i)
+      val key = dict.get(a) match {
+        case Some(k) =>
+          k
+        case None =>
+          val k = dict.size
+          if (k > 255)
+            return None
+          dict.put(a, k)
+          k
+      }
+      encoding(i) = key.toByte
+      i += 1
+    }
+    val flatDict: Array[A] = new Array[A](dict.size)
+    dict.foreach { case (a, k) =>
+      flatDict(k) = a
+    }
+    Some((flatDict, encoding))
   }
 }
 
 object DenseArrayLayout {
+  val PlainEncoding = 0.toByte
+  val ByteDictionaryEncoding = 1.toByte
+
   def readBoolean(in: DataInput, arr: Array[Boolean]): Unit = {
     var i = 0
     while (i < arr.length) {
       arr(i) = in.readBoolean()
+      i += 1
     }
   }
 
@@ -112,6 +120,7 @@ object DenseArrayLayout {
     var i = 0
     while (i < arr.length) {
       arr(i) = in.readByte()
+      i += 1
     }
   }
 
@@ -119,6 +128,7 @@ object DenseArrayLayout {
     var i = 0
     while (i < arr.length) {
       arr(i) = in.readShort()
+      i += 1
     }
   }
 
@@ -126,6 +136,7 @@ object DenseArrayLayout {
     var i = 0
     while (i < arr.length) {
       arr(i) = in.readInt()
+      i += 1
     }
   }
 
@@ -133,6 +144,7 @@ object DenseArrayLayout {
     var i = 0
     while (i < arr.length) {
       arr(i) = in.readLong()
+      i += 1
     }
   }
 
@@ -140,6 +152,7 @@ object DenseArrayLayout {
     var i = 0
     while (i < arr.length) {
       arr(i) = in.readFloat()
+      i += 1
     }
   }
 
@@ -147,6 +160,7 @@ object DenseArrayLayout {
     var i = 0
     while (i < arr.length) {
       arr(i) = in.readDouble()
+      i += 1
     }
   }
 
@@ -154,20 +168,102 @@ object DenseArrayLayout {
     var i = 0
     while (i < arr.length) {
       arr(i) = in.readChar()
+      i += 1
+    }
+  }
+
+  def readString(in: DataInput, arr: Array[String]): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      arr(i) = in.readUTF()
+      i += 1
+    }
+  }
+
+  def writeBoolean(arr: Array[Boolean], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeBoolean(arr(i))
+      i += 1
+    }
+  }
+
+  def writeByte(arr: Array[Byte], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeByte(arr(i))
+      i += 1
+    }
+  }
+
+  def writeShort(arr: Array[Short], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeShort(arr(i))
+      i += 1
+    }
+  }
+
+  def writeInt(arr: Array[Int], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeInt(arr(i))
+      i += 1
+    }
+  }
+
+  def writeLong(arr: Array[Long], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeLong(arr(i))
+      i += 1
+    }
+  }
+
+  def writeFloat(arr: Array[Float], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeFloat(arr(i))
+      i += 1
+    }
+  }
+
+  def writeDouble(arr: Array[Double], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeDouble(arr(i))
+      i += 1
+    }
+  }
+
+  def writeChar(arr: Array[Char], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeChar(arr(i))
+      i += 1
+    }
+  }
+
+  def writeString(arr: Array[String], out: DataOutput): Unit = {
+    var i = 0
+    while (i < arr.length) {
+      out.writeUTF(arr(i))
+      i += 1
     }
   }
 }
 
 import DenseArrayLayout._
 
-case object DenseBooleanLayout extends DenseArrayLayout[Boolean](DenseBooleanVec, readBoolean)
-case object DenseByteLayout extends DenseArrayLayout[Byte](DenseByteVec, readByte)
-case object DenseShortLayout extends DenseArrayLayout[Short](DenseShortVec, readShort)
-case object DenseIntLayout extends DenseArrayLayout[Int](DenseIntVec, readInt)
-case object DenseLongLayout extends DenseArrayLayout[Long](DenseLongVec, readLong)
-case object DenseFloatLayout extends DenseArrayLayout[Float](DenseFloatVec, readFloat)
-case object DenseDoubleLayout extends DenseArrayLayout[Double](DenseDoubleVec, readDouble)
-case object DenseCharLayout extends DenseArrayLayout[Char](DenseCharVec, readChar)
+case object DenseBooleanLayout extends DenseArrayLayout[Boolean](DenseBooleanVec, readBoolean, writeBoolean)
+case object DenseByteLayout extends DenseArrayLayout[Byte](DenseByteVec, readByte, writeByte)
+case object DenseShortLayout extends DenseArrayLayout[Short](DenseShortVec, readShort, writeShort)
+case object DenseIntLayout extends DenseArrayLayout[Int](DenseIntVec, readInt, writeInt)
+case object DenseLongLayout extends DenseArrayLayout[Long](DenseLongVec, readLong, writeLong)
+case object DenseFloatLayout extends DenseArrayLayout[Float](DenseFloatVec, readFloat, writeFloat)
+case object DenseDoubleLayout extends DenseArrayLayout[Double](DenseDoubleVec, readDouble, writeDouble)
+case object DenseCharLayout extends DenseArrayLayout[Char](DenseCharVec, readChar, writeChar)
+case object DenseStringLayout extends DenseArrayLayout[String](DenseStringVec, readString, writeString)
 
 class DenseBuilder[A, To](
   bldr: Builder[A, To],
@@ -216,4 +312,43 @@ case class DenseDoubleVec(vec: Array[Double]) extends DenseVec[Double] {
 
 case class DenseCharVec(vec: Array[Char]) extends DenseVec[Char] {
   def apply(index: Int): Char = vec(index)
+}
+
+case class DenseStringVec(vec: Array[String]) extends DenseVec[String] {
+  def apply(index: Int): String = vec(index)
+}
+
+case object UnitLayout extends Layout[Unit] {
+  def newBuilder: DenseUnitBuilder =
+    new DenseUnitBuilder
+
+  def write(vec: Vec[Unit], out: DataOutput): Unit =
+    out.writeInt(vec.size)
+
+  def read(in: DataInput): Vec[Unit] =
+    DenseUnitVec(in.readInt())
+
+  def isSafeToCast(vec: Vec[_]): Boolean = vec match {
+    case DenseUnitVec(_) => true
+    case _ => false
+  }
+}
+
+class DenseUnitBuilder extends VecBuilder[Unit] {
+  var len = 0
+  def +=(u: Unit) = {
+    len += 1
+    this
+  }
+  def clear(): Unit = { len = 0 }
+  def result(): Vec[Unit] = DenseUnitVec(len)
+}
+
+case class DenseUnitVec(size: Int) extends Vec[Unit] {
+  def apply(index: Int): Unit =
+    if (index >= 0 && index < size) {
+      ()
+    } else {
+      throw new IndexOutOfBoundsException(index.toString)
+    }
 }
