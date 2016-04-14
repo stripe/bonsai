@@ -1,5 +1,7 @@
 package com.stripe.bonsai
 
+import java.io.IOException
+
 import scala.language.existentials
 
 import scala.collection.immutable.Queue
@@ -206,7 +208,10 @@ object FullBinaryTree {
       f(label, x1, x2)
     }
 
+  val MagicNum = 0x66797883657302L // BONSAI/2
+
   def write[A: Layout, B: Layout](tree: FullBinaryTree[A, B], out: DataOutput): Unit = {
+    out.writeLong(MagicNum)
     Layout[A].write(tree.branchLabels, out)
     Layout[B].write(tree.leafLabels, out)
     IndexedBitSet.write(out, tree.isLeaf)
@@ -215,6 +220,10 @@ object FullBinaryTree {
   }
 
   def read[A: Layout, B: Layout](in: DataInput): FullBinaryTree[A, B] = {
+    if (in.readLong() != MagicNum) {
+      throw new IOException("not a Bonsai tree: no magic number")
+    }
+
     val branchLabels = Layout[A].read(in)
     val leafLabels = Layout[B].read(in)
     val isLeaf = IndexedBitSet.read(in, branchLabels.size + leafLabels.size)
