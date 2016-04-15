@@ -25,6 +25,20 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
   def minNode(n: ops.Node): Int =
     ops.foldNode(n)((lc, rc, n) => (n min (minNode(lc) min minNode(rc))), n => n)
 
+  "write" should {
+    "round-trip through read" in {
+      import java.io._
+
+      forAll { (genericTree: GenericBinTree[Int]) =>
+        val tree = FullBinaryTree(genericTree)
+        val baos = new ByteArrayOutputStream
+        FullBinaryTree.write(tree, new DataOutputStream(baos))
+        val tree2 = FullBinaryTree.read[Int, Int](new DataInputStream(new ByteArrayInputStream(baos.toByteArray)))
+        tree shouldBe tree2
+      }
+    }
+  }
+
   "FullBinaryTree.apply" should {
     "copy structure of tree" in {
       forAll { (tree: GTI) =>
@@ -56,6 +70,26 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
         doTree(tree)(minNode) shouldBe elems.min
 
         tree.reduce[Set[Int]](Set(_) | _ | _)(Set(_)) shouldBe Some(elems)
+      }
+    }
+  }
+
+  "equals" should {
+    "return true on structural equality" in {
+      check { (genTree: GTI) =>
+        val bt1 = FullBinaryTree(genTree)
+        val bt2 = FullBinaryTree(genTree)
+        bt1 == bt2 && bt1.hashCode == bt2.hashCode
+      }
+    }
+  }
+
+  "hashCode" should {
+    "should agree with equals" in {
+      check { (gt1: GTI, gt2: GTI) =>
+        val bt1 = FullBinaryTree(gt1)
+        val bt2 = FullBinaryTree(gt2)
+        bt1.hashCode == bt2.hashCode || bt1 != bt2
       }
     }
   }

@@ -1,8 +1,12 @@
 package com.stripe.bonsai
 
+import java.io.IOException
+
 import scala.language.existentials
 
 import scala.collection.immutable.Queue
+
+import java.io.{ DataInput, DataOutput }
 
 import com.stripe.bonsai.layout.Vec
 
@@ -91,6 +95,22 @@ class FullBinaryTree[A, B](
 
   final def nonEmpty: Boolean = bitset(0)
   final def isEmpty: Boolean = !bitset(0)
+
+  override def equals(that: Any): Boolean = that match {
+    case (that: FullBinaryTree[_, _]) =>
+      this.bitset == that.bitset &&
+      this.isLeaf == that.isLeaf &&
+      this.branchLabels == that.branchLabels &&
+      this.leafLabels == that.leafLabels
+
+    case _ =>
+      false
+  }
+
+  override def hashCode: Int = {
+    17 * (bitset.hashCode + (23 * isLeaf.hashCode +
+      (47 * branchLabels.hashCode + (19 * leafLabels.hashCode))))
+  }
 
   sealed abstract class NodeRef {
     def fold[R](f: (NodeRef, NodeRef, A) => R, g: B => R): R
@@ -203,4 +223,28 @@ object FullBinaryTree {
       val x2 = reduceNode(tree, tree.bitset.rank(2 * index + 2) - 1)(f)(g)
       f(label, x1, x2)
     }
+
+  val MagicNum = 0x66797883657302L // BONSAI/2
+
+  def write[A: Layout, B: Layout](tree: FullBinaryTree[A, B], out: DataOutput): Unit = {
+    out.writeLong(MagicNum)
+    Layout[A].write(tree.branchLabels, out)
+    Layout[B].write(tree.leafLabels, out)
+    IndexedBitSet.write(tree.isLeaf, out)
+    out.writeInt(tree.bitset.length)
+    IndexedBitSet.write(tree.bitset, out)
+  }
+
+  def read[A: Layout, B: Layout](in: DataInput): FullBinaryTree[A, B] = {
+    if (in.readLong() != MagicNum) {
+      throw new IOException("not a Bonsai tree: no magic number")
+    }
+
+    val branchLabels = Layout[A].read(in)
+    val leafLabels = Layout[B].read(in)
+    val isLeaf = IndexedBitSet.read(in)
+    val bitsetLength = in.readInt()
+    val bitset = IndexedBitSet.read(in)
+    new FullBinaryTree(bitset, isLeaf, branchLabels, leafLabels)
+  }
 }

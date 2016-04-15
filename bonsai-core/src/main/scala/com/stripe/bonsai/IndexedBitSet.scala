@@ -3,6 +3,7 @@ package com.stripe.bonsai
 import scala.annotation.switch
 import scala.collection.immutable.BitSet
 import scala.collection.mutable.{ Builder, ArrayBuilder }
+import scala.util.hashing.MurmurHash3
 
 /**
  * IndexedBitSet is an immutable set for storing non-negative integer values.
@@ -184,6 +185,36 @@ final class IndexedBitSet(
     iterator
       .map(b => if (b) '1' else '0')
       .mkString("IndexedBitSet(", "", ")")
+
+  override def equals(that: Any): Boolean = that match {
+    case (that: IndexedBitSet) =>
+      if (this.length != that.length)
+        return false
+      val bits1 = this.bits
+      val bits2 = that.bits
+      if (bits1.length != bits2.length)
+        return false
+      var i = rawBitsStart
+      while (i < bits1.length && i < bits2.length) {
+        if (bits1(i) != bits2(i))
+          return false
+        i += 1
+      }
+      true
+
+    case _ =>
+      false
+  }
+
+  override def hashCode: Int = {
+    var i = rawBitsStart
+    var h = MurmurHash3.symmetricSeed
+    while (i < bits.length) {
+      h = MurmurHash3.mix(h, bits(i).hashCode)
+      i += 1
+    }
+    MurmurHash3.finalizeHash(h, i - rawBitsStart)
+  }
 }
 
 object IndexedBitSet {
@@ -326,6 +357,53 @@ object IndexedBitSet {
    */
   private[bonsai] def ceilDiv(n: Int, d: Int): Int =
     ((n.toLong + d - 1) / d).toInt
+
+  final val RawEncoding = 1.toByte
+
+  /**
+   * Writes out the raw bits from an [[IndexedBitSet]] to a `DataOutput` as
+   * bytes, LSB. This will write out `ceil(bitset.length / 8)` bytes.
+   *
+   * @param out    the output to write bytes to
+   * @param bitset the bitset to write out
+   */
+  def write(bitset: IndexedBitSet, out: java.io.DataOutput): Unit = {
+    out.writeByte(RawEncoding)
+    out.writeInt(bitset.length)
+    out.writeInt(bitset.level2Start)
+    out.writeInt(bitset.rawBitsStart)
+    val bits = bitset.bits
+    var i = 0
+    while (i < bits.length) {
+      out.writeInt(bits(i))
+      i += 1
+    }
+  }
+
+  /**
+   * Read in a IndexedBitSet from the [[java.io.DataInput]].
+   *
+   * @param in the input to read bytes from
+   */
+  def read(in: java.io.DataInput): IndexedBitSet = {
+    in.readByte() match {
+      case RawEncoding =>
+        val length = in.readInt()
+        val level2Start = in.readInt()
+        val rawBitsStart = in.readInt()
+        val wordCount = rawBitsStart + ceilDiv(length, 32)
+        val bits = new Array[Int](wordCount)
+        var i = 0
+        while (i < bits.length) {
+          bits(i) = in.readInt()
+          i += 1
+        }
+        new IndexedBitSet(bits, length, level2Start, rawBitsStart)
+
+      case _ =>
+        throw new java.io.IOException("invalid encoding for IndexedBitSet")
+    }
+  }
 }
 
 /**

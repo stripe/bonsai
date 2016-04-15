@@ -86,4 +86,38 @@ class IndexedBitSetSpec extends WordSpec with Matchers with Checkers {
       }
     }
   }
+
+  "write" should {
+    "round-trip through read" in {
+      import java.io._
+
+      check { (xs: BitSet) =>
+        val bs = IndexedBitSet.fromBitSet(xs)
+        val baos = new ByteArrayOutputStream
+        IndexedBitSet.write(bs, new DataOutputStream(baos))
+        val bs2 = IndexedBitSet.read(new DataInputStream(new ByteArrayInputStream(baos.toByteArray)))
+        bs == bs2
+      }
+    }
+  }
+
+  "equals" should {
+    "return true on structural equality" in {
+      check { (xs: BitSet) =>
+        val bs1 = IndexedBitSet.fromBitSet(xs)
+        val bs2 = IndexedBitSet.fromBitSet(xs)
+        bs1 == bs2 && bs1.hashCode == bs2.hashCode
+      }
+    }
+  }
+
+  "hashCode" should {
+    "should agree with equals" in {
+      check { (xs: BitSet, ys: BitSet) =>
+        val bs1 = IndexedBitSet.fromBitSet(xs)
+        val bs2 = IndexedBitSet.fromBitSet(ys)
+        bs1.hashCode == bs2.hashCode || bs1 != bs2
+      }
+    }
+  }
 }
