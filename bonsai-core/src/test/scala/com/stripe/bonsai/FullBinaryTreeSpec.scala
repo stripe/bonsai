@@ -25,6 +25,20 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
   def minNode(n: ops.Node): Int =
     ops.foldNode(n)((lc, rc, n) => (n min (minNode(lc) min minNode(rc))), n => n)
 
+  "write" should {
+    "round-trip through read" in {
+      import java.io._
+
+      forAll { (genericTree: GenericBinTree[Int]) =>
+        val tree = FullBinaryTree(genericTree)
+        val baos = new ByteArrayOutputStream
+        FullBinaryTree.write(tree, new DataOutputStream(baos))
+        val tree2 = FullBinaryTree.read(new DataInputStream(new ByteArrayInputStream(baos.toByteArray)))
+        tree shouldBe tree2
+      }
+    }
+  }
+
   "FullBinaryTree.apply" should {
     "copy structure of tree" in {
       forAll { (tree: GTI) =>

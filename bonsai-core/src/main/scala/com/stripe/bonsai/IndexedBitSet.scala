@@ -3,6 +3,7 @@ package com.stripe.bonsai
 import scala.annotation.switch
 import scala.collection.immutable.BitSet
 import scala.collection.mutable.{ Builder, ArrayBuilder }
+import scala.util.hashing.MurmurHash3
 
 /**
  * IndexedBitSet is an immutable set for storing non-negative integer values.
@@ -184,6 +185,36 @@ final class IndexedBitSet(
     iterator
       .map(b => if (b) '1' else '0')
       .mkString("IndexedBitSet(", "", ")")
+
+  override def equals(that: Any): Boolean = that match {
+    case (that: IndexedBitSet) =>
+      if (this.length != that.length)
+        return false
+      val bits1 = this.bits
+      val bits2 = that.bits
+      if (bits1.length != bits2.length)
+        return false
+      var i = rawBitsStart
+      while (i < bits1.length && i < bits2.length) {
+        if (bits1(i) != bits2(i))
+          return false
+        i += 1
+      }
+      true
+
+    case _ =>
+      false
+  }
+
+  override def hashCode: Int = {
+    var i = rawBitsStart
+    var h = MurmurHash3.symmetricSeed
+    while (i < bits.length) {
+      h = MurmurHash3.mix(h, bits(i).hashCode)
+      i += 1
+    }
+    MurmurHash3.finalizeHash(h, i - rawBitsStart)
+  }
 }
 
 object IndexedBitSet {

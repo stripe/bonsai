@@ -280,6 +280,9 @@ class DenseBuilder[A, To](
 sealed trait DenseVec[@specialized A] extends Vec[A] {
   def vec: Array[A]
   def size: Int = vec.length
+
+  override def inflate(implicit ct: ClassTag[A]): Vec[A] =
+    this
 }
 
 case class DenseBooleanVec(vec: Array[Boolean]) extends DenseVec[Boolean] {

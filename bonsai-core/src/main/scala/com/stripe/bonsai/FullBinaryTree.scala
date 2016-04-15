@@ -96,6 +96,22 @@ class FullBinaryTree[A, B](
   final def nonEmpty: Boolean = bitset(0)
   final def isEmpty: Boolean = !bitset(0)
 
+  override def equals(that: Any): Boolean = that match {
+    case (that: FullBinaryTree[_, _]) =>
+      this.bitset == that.bitset &&
+      this.isLeaf == that.isLeaf &&
+      this.branchLabels == that.branchLabels &&
+      this.leafLabels == that.leafLabels
+
+    case _ =>
+      false
+  }
+
+  override def hashCode: Int = {
+    17 * (bitset.hashCode + (23 * isLeaf.hashCode +
+      (47 * branchLabels.hashCode + (19 * leafLabels.hashCode))))
+  }
+
   sealed abstract class NodeRef {
     def fold[R](f: (NodeRef, NodeRef, A) => R, g: B => R): R
     def reduce[X](f: (A, X, X) => X)(g: B => X): X

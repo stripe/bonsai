@@ -15,6 +15,8 @@ trait Layout[A] {
 
   def read(in: DataInput): Vec[A]
 
+  def isSafeToCast(vec: Vec[_]): Boolean
+
   def empty: Vec[A] = newBuilder.result()
 
   def zip[B](that: Layout[B]): Layout[(A, B)] = Layout.join(this, that)
@@ -23,7 +25,7 @@ trait Layout[A] {
 
   def optional: Layout[Option[A]] = Layout.optional(this)
 
-  def isSafeToCast(vec: Vec[_]): Boolean
+  def inflateOnRead(implicit ct: ClassTag[A]): Layout[A] = Layout.inflateOnRead(this)
 }
 
 object Layout {
@@ -57,4 +59,12 @@ object Layout {
 
   def transform[A, B](layout: Layout[A])(f: A => B, g: B => A): Layout[B] =
     new TransformedLayout(layout, g, f)
+
+  def inflateOnRead[A: ClassTag](layout: Layout[A]): Layout[A] =
+    new Layout[A] {
+      def newBuilder: VecBuilder[A] = layout.newBuilder
+      def write(vec: Vec[A], out: DataOutput): Unit = layout.write(vec, out)
+      def read(in: DataInput): Vec[A] = layout.read(in).inflate
+      def isSafeToCast(vec: Vec[_]): Boolean = layout.isSafeToCast(vec)
+    }
 }
