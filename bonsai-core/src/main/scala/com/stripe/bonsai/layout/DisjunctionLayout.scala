@@ -22,7 +22,7 @@ case class DisjunctionLayout[A, B, C](
     out.writeByte(DisjunctionLayout.SplitEncoding)
     leftLayout.write(left, out)
     rightLayout.write(right, out)
-    IndexedBitSet.write(out, bitset)
+    IndexedBitSet.write(bitset, out)
   }
 
   def read(in: DataInput): Vec[C] = {
@@ -30,7 +30,7 @@ case class DisjunctionLayout[A, B, C](
       case DisjunctionLayout.SplitEncoding =>
         val left = leftLayout.read(in)
         val right = rightLayout.read(in)
-        val bitset = IndexedBitSet.read(in, left.size + right.size)
+        val bitset = IndexedBitSet.read(in)
         DisjunctionVec(bitset, left, right, mkLeft, mkRight)
 
       case _ =>

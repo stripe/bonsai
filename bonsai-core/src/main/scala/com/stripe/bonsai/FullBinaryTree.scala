@@ -230,9 +230,9 @@ object FullBinaryTree {
     out.writeLong(MagicNum)
     Layout[A].write(tree.branchLabels, out)
     Layout[B].write(tree.leafLabels, out)
-    IndexedBitSet.write(out, tree.isLeaf)
+    IndexedBitSet.write(tree.isLeaf, out)
     out.writeInt(tree.bitset.length)
-    IndexedBitSet.write(out, tree.bitset)
+    IndexedBitSet.write(tree.bitset, out)
   }
 
   def read[A: Layout, B: Layout](in: DataInput): FullBinaryTree[A, B] = {
@@ -242,9 +242,9 @@ object FullBinaryTree {
 
     val branchLabels = Layout[A].read(in)
     val leafLabels = Layout[B].read(in)
-    val isLeaf = IndexedBitSet.read(in, branchLabels.size + leafLabels.size)
+    val isLeaf = IndexedBitSet.read(in)
     val bitsetLength = in.readInt()
-    val bitset = IndexedBitSet.read(in, bitsetLength)
+    val bitset = IndexedBitSet.read(in)
     new FullBinaryTree(bitset, isLeaf, branchLabels, leafLabels)
   }
 }

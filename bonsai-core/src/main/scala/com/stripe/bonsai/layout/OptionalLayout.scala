@@ -12,7 +12,7 @@ case class OptionalLayout[A](layout: Layout[A]) extends Layout[Option[A]] {
     out.writeByte(OptionalLayout.BitSetEncoding)
     layout.write(underlying, out)
     out.writeInt(bitset.length)
-    IndexedBitSet.write(out, bitset)
+    IndexedBitSet.write(bitset, out)
   }
 
   def read(in: DataInput): Vec[Option[A]] = {
@@ -20,7 +20,7 @@ case class OptionalLayout[A](layout: Layout[A]) extends Layout[Option[A]] {
       case DisjunctionLayout.SplitEncoding =>
         val underlying = layout.read(in)
         val length = in.readInt()
-        val bitset = IndexedBitSet.read(in, length)
+        val bitset = IndexedBitSet.read(in)
         OptionalVec(bitset, underlying)
 
       case _ =>

@@ -86,4 +86,18 @@ class IndexedBitSetSpec extends WordSpec with Matchers with Checkers {
       }
     }
   }
+
+  "write" should {
+    "round-trip through read" in {
+      import java.io._
+
+      check { (xs: BitSet) =>
+        val bs = IndexedBitSet.fromBitSet(xs)
+        val baos = new ByteArrayOutputStream
+        IndexedBitSet.write(bs, new DataOutputStream(baos))
+        val bs2 = IndexedBitSet.read(new DataInputStream(new ByteArrayInputStream(baos.toByteArray)))
+        bs == bs2
+      }
+    }
+  }
 }

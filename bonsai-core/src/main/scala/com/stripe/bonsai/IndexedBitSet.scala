@@ -358,6 +358,8 @@ object IndexedBitSet {
   private[bonsai] def ceilDiv(n: Int, d: Int): Int =
     ((n.toLong + d - 1) / d).toInt
 
+  final val RawEncoding = 1.toByte
+
   /**
    * Writes out the raw bits from an [[IndexedBitSet]] to a `DataOutput` as
    * bytes, LSB. This will write out `ceil(bitset.length / 8)` bytes.
@@ -365,47 +367,42 @@ object IndexedBitSet {
    * @param out    the output to write bytes to
    * @param bitset the bitset to write out
    */
-  def write(out: java.io.DataOutput, bitset: IndexedBitSet): Unit = {
+  def write(bitset: IndexedBitSet, out: java.io.DataOutput): Unit = {
+    out.writeByte(RawEncoding)
+    out.writeInt(bitset.length)
+    out.writeInt(bitset.level2Start)
+    out.writeInt(bitset.rawBitsStart)
     val bits = bitset.bits
-    val rawBitsStart = bitset.rawBitsStart
-    def getByte(i: Int): Int = {
-      val wordOffset = i >>> 2
-      val bitOffset = (i & 3) << 3
-      val word = bits(rawBitsStart + wordOffset)
-      (word >>> bitOffset) & 0xFF
-    }
-
-    val byteLen = ceilDiv(bitset.length, 8)
     var i = 0
-    while (i < byteLen) {
-      out.writeByte(getByte(i))
+    while (i < bits.length) {
+      out.writeInt(bits(i))
       i += 1
     }
   }
 
   /**
-   * Read in a IndexedBitSet of the given length from a `DataInput`. This
-   * expects the bitset to be encoded in bytes, LSB. This will consume
-   * ceil(length / 8) bytes from the `DataInput`.
+   * Read in a IndexedBitSet from the [[java.io.DataInput]].
    *
-   * @param in     the input to read bytes from
-   * @param length the length of the bitset to read, in bits
+   * @param in the input to read bytes from
    */
-  def read(in: java.io.DataInput, length: Int): IndexedBitSet = {
-    val byteLen = ceilDiv(length, 8)
-    val bldr = new IndexedBitSetBuilder
-    var i = 0
-    while (i < byteLen) {
-      val byte = in.readByte()
-      val byteLen = math.min(length - i * 8, 8)
-      var j = 0
-      while (j < byteLen) {
-        bldr += (byte & (1 << j)) != 0
-        j += 1
-      }
-      i += 1
+  def read(in: java.io.DataInput): IndexedBitSet = {
+    in.readByte() match {
+      case RawEncoding =>
+        val length = in.readInt()
+        val level2Start = in.readInt()
+        val rawBitsStart = in.readInt()
+        val wordCount = rawBitsStart + ceilDiv(length, 32)
+        val bits = new Array[Int](wordCount)
+        var i = 0
+        while (i < bits.length) {
+          bits(i) = in.readInt()
+          i += 1
+        }
+        new IndexedBitSet(bits, length, level2Start, rawBitsStart)
+
+      case _ =>
+        throw new java.io.IOException("invalid encoding for IndexedBitSet")
     }
-    bldr.result()
   }
 }
 
