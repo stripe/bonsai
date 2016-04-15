@@ -33,7 +33,7 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
         val tree = FullBinaryTree(genericTree)
         val baos = new ByteArrayOutputStream
         FullBinaryTree.write(tree, new DataOutputStream(baos))
-        val tree2 = FullBinaryTree.read(new DataInputStream(new ByteArrayInputStream(baos.toByteArray)))
+        val tree2 = FullBinaryTree.read[Int, Int](new DataInputStream(new ByteArrayInputStream(baos.toByteArray)))
         tree shouldBe tree2
       }
     }
