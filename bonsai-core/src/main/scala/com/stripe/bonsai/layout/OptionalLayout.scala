@@ -9,16 +9,23 @@ case class OptionalLayout[A](layout: Layout[A]) extends Layout[Option[A]] {
 
   def write(vec: Vec[Option[A]], out: DataOutput): Unit = {
     val OptionalVec(bitset, underlying) = recast(vec)
+    out.writeByte(OptionalLayout.BitSetEncoding)
     layout.write(underlying, out)
     out.writeInt(bitset.length)
     IndexedBitSet.write(out, bitset)
   }
 
   def read(in: DataInput): Vec[Option[A]] = {
-    val underlying = layout.read(in)
-    val length = in.readInt()
-    val bitset = IndexedBitSet.read(in, length)
-    OptionalVec(bitset, underlying)
+    in.readByte() match {
+      case DisjunctionLayout.SplitEncoding =>
+        val underlying = layout.read(in)
+        val length = in.readInt()
+        val bitset = IndexedBitSet.read(in, length)
+        OptionalVec(bitset, underlying)
+
+      case _ =>
+        throw new java.io.IOException("unsupported encoding for optional layout")
+    }
   }
 
   def isSafeToCast(vec: Vec[_]): Boolean = vec match {
@@ -35,6 +42,10 @@ case class OptionalLayout[A](layout: Layout[A]) extends Layout[Option[A]] {
       (newBuilder ++= vec).result()
     }
   }
+}
+
+object OptionalLayout {
+  final val BitSetEncoding = 1.toByte
 }
 
 class OptionalBuilder[A](bldr: VecBuilder[A]) extends VecBuilder[Option[A]] {

@@ -27,16 +27,23 @@ class Product3Layout[A, B, C, D](
 
   def write(vec: Vec[D], out: DataOutput): Unit = {
     val Product3Vec(as, bs, cs, _) = recast(vec)
+    out.writeByte(Product3Layout.SplitEncoding)
     layoutA.write(as, out)
     layoutB.write(bs, out)
     layoutC.write(cs, out)
   }
 
   def read(in: DataInput): Vec[D] = {
-    val as = layoutA.read(in)
-    val bs = layoutB.read(in)
-    val cs = layoutC.read(in)
-    Product3Vec(as, bs, cs, pack)
+    in.readByte() match {
+      case Product3Layout.SplitEncoding =>
+        val as = layoutA.read(in)
+        val bs = layoutB.read(in)
+        val cs = layoutC.read(in)
+        Product3Vec(as, bs, cs, pack)
+
+      case _ =>
+        throw new java.io.IOException("unsupported encoding for product3 layout")
+    }
   }
 
   private def recast(vec: Vec[D]): Product3Vec[A, B, C, D] = {
@@ -46,6 +53,10 @@ class Product3Layout[A, B, C, D](
       (newBuilder ++= vec).result()
     }
   }
+}
+
+object Product3Layout {
+  final val SplitEncoding = 1.toByte
 }
 
 class Product3Builder[A, B, C, D](

@@ -19,16 +19,23 @@ case class DisjunctionLayout[A, B, C](
 
   def write(vec: Vec[C], out: DataOutput): Unit = {
     val DisjunctionVec(bitset, left, right, _, _) = recast(vec)
+    out.writeByte(DisjunctionLayout.SplitEncoding)
     leftLayout.write(left, out)
     rightLayout.write(right, out)
     IndexedBitSet.write(out, bitset)
   }
 
   def read(in: DataInput): Vec[C] = {
-    val left = leftLayout.read(in)
-    val right = rightLayout.read(in)
-    val bitset = IndexedBitSet.read(in, left.size + right.size)
-    DisjunctionVec(bitset, left, right, mkLeft, mkRight)
+    in.readByte() match {
+      case DisjunctionLayout.SplitEncoding =>
+        val left = leftLayout.read(in)
+        val right = rightLayout.read(in)
+        val bitset = IndexedBitSet.read(in, left.size + right.size)
+        DisjunctionVec(bitset, left, right, mkLeft, mkRight)
+
+      case _ =>
+        throw new java.io.IOException("unsupported encoding for disjunction layout")
+    }
   }
 
   def isSafeToCast(vec: Vec[_]): Boolean = vec match {
@@ -45,6 +52,10 @@ case class DisjunctionLayout[A, B, C](
       (newBuilder ++= vec).result()
     }
   }
+}
+
+object DisjunctionLayout {
+  final val SplitEncoding = 1.toByte
 }
 
 class DisjunctionBuilder[A, B, C](
