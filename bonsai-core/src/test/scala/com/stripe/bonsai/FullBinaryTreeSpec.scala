@@ -73,4 +73,24 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
       }
     }
   }
+
+  "equals" should {
+    "return true on structural equality" in {
+      check { (genTree: GTI) =>
+        val bt1 = FullBinaryTree(genTree)
+        val bt2 = FullBinaryTree(genTree)
+        bt1 == bt2 && bt1.hashCode == bt2.hashCode
+      }
+    }
+  }
+
+  "hashCode" should {
+    "should agree with equals" in {
+      check { (gt1: GTI, gt2: GTI) =>
+        val bt1 = FullBinaryTree(gt1)
+        val bt2 = FullBinaryTree(gt2)
+        bt1.hashCode == bt2.hashCode || bt1 != bt2
+      }
+    }
+  }
 }

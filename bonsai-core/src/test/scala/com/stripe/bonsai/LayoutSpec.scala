@@ -16,6 +16,28 @@ import com.stripe.bonsai.layout._
 
 class LayoutSpec extends WordSpec with Matchers with Checkers {
   def layoutCheck[A: Arbitrary: Layout: ClassTag](name: String): Unit = {
+    s"Vec[$name].equals" should {
+      "use structural equality" in {
+        Prop.forAll { (xs: Vector[A]) =>
+          val xs1 = (Layout[A].newBuilder ++= xs).result()
+          val xs2 = (Layout[A].newBuilder ++= xs).result()
+          ("elements match" |: Prop(xs1 == xs2)) &&
+          ("hashCodes match" |: Prop(xs1.hashCode == xs2.hashCode))
+        }
+      }
+    }
+
+    s"Vec[$name].hashCode" should {
+      "should agree with equals" in {
+        Prop.forAll { (xs1: Vector[A], xs2: Vector[A]) =>
+          val vec1 = (Layout[A].newBuilder ++= xs1).result()
+          val vec2 = (Layout[A].newBuilder ++= xs2).result()
+          "hashCode mismatch implies inequality" |:
+            Prop(vec1.hashCode == vec2.hashCode || vec1 != vec2)
+        }
+      }
+    }
+
     s"Layout[$name].newBuilder" should {
       "start empty" in {
         val vec = Layout[A].newBuilder.result()
