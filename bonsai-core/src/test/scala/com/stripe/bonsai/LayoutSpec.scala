@@ -15,6 +15,20 @@ import org.scalacheck.Arbitrary._
 import com.stripe.bonsai.layout._
 
 class LayoutSpec extends WordSpec with Matchers with Checkers {
+  private[this] def roundTrip[A: Layout](vec: Vec[A]): Vec[A] = {
+    val baos = new ByteArrayOutputStream()
+    Layout[A].write(vec, new DataOutputStream(baos))
+    Layout[A].read(new DataInputStream(new ByteArrayInputStream(baos.toByteArray)))
+  }
+
+  "DenseArrayLayout" should {
+    "not use byte dict encoding if there are 256 unique values" in {
+      val xs: Seq[Double] = Seq.tabulate(256)(_.toDouble)
+      val vec: Vec[Double] = Vec[Double](xs: _*)
+      roundTrip(vec) == vec
+    }
+  }
+
   def layoutCheck[A: Arbitrary: Layout: ClassTag](name: String): Unit = {
     s"Vec[$name].equals" should {
       "use structural equality" in {
@@ -61,10 +75,7 @@ class LayoutSpec extends WordSpec with Matchers with Checkers {
       "round-trip through read" in {
         Prop.forAll { (xs: Vector[A]) =>
           val vec1 = Layout[A].newBuilder.++=(xs).result
-          val baos = new ByteArrayOutputStream()
-          Layout[A].write(vec1, new DataOutputStream(baos))
-          val vec2 = Layout[A].read(new DataInputStream(new ByteArrayInputStream(baos.toByteArray)))
-
+          val vec2 = roundTrip(vec1)
           vec1 == vec2
         }
       }
