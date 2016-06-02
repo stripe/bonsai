@@ -35,7 +35,7 @@ sealed abstract class DenseArrayLayout[A: ClassTag](
 
       case DenseArrayLayout.ByteDictionaryEncoding =>
         val dictLen = in.readInt()
-        require(dictLen <= 255)
+        require(dictLen <= 256)
         val dict: Array[A] = new Array[A](dictLen)
         readArray(in, dict)
         val encoding: Array[Byte] = new Array[Byte](in.readInt())
