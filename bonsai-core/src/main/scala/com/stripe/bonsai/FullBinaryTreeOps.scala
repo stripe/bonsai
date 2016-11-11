@@ -21,6 +21,17 @@ trait FullBinaryTreeOps[T, BL, LL] extends TreeOps[T, Either[BL, LL]] {
 
   def children(node: Node): Iterable[Node] =
     foldNode(node)({ case (lc, rc, _) => lc :: rc :: Nil }, _ => Nil)
+
+  def collectLabelsF[A](node: Node, f: Label => A): Set[A] =
+    foldNode(node)(
+      { case (lc, rc, label) => Set(f(Left(label))) | collectLabelsF(lc, f) | collectLabelsF(rc, f) },
+        ll => Set(f(Right(ll))))
+
+  def collectLeafLabelsF[A](node: Node, f: LL => A): Set[A] =
+    foldNode(node)({case (lc, rc, _) => collectLeafLabelsF(lc, f) | collectLeafLabelsF(rc, f)}, ll => Set(f(ll)))
+
+  def collectLabels(node: Node): Set[Label] = collectLabelsF(node, identity)
+  def collectLeafLabels(node: Node): Set[LL] = collectLeafLabelsF(node, identity)
 }
 
 object FullBinaryTreeOps {

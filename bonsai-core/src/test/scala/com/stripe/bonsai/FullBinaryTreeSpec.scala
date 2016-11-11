@@ -93,4 +93,24 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
       }
     }
   }
+
+  "FullBinaryTreeOps" should {
+    "collect leaf labels" in {
+      val genTree = GenericBinTree.branch(2, GenericBinTree.leaf(1), GenericBinTree.leaf(3))
+      val bt1 = FullBinaryTree(genTree)
+      ops.collectLeafLabels(ops.root(bt1).get) shouldBe Set(1, 3)
+    }
+
+    "stream all labels" in {
+      import GenericBinTree._
+      val genTree = branch(0, branch(2, leaf(1), leaf(3)), branch(6, leaf(5), leaf(0)))
+      val bt1 = FullBinaryTree(genTree)
+      val expected = List(1, 2, 3, 0, 5, 6, 0)
+      val unpackLabel: ops.Label => Int = _ match {
+        case Left(i)=> i
+        case Right(i) => i
+      }
+      ops.collectLabelsF(ops.root(bt1).get, unpackLabel) shouldBe expected.toSet
+    }
+  }
 }
