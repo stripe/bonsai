@@ -157,7 +157,7 @@ object FullBinaryTree {
       def foldNode[X](node: Node)(f: (Node, Node, A) => X, g: B => X): X =
         node.fold(f, g)
 
-      override def reduce[X](node: Node)(f: (Label, Iterable[X]) => X): X =
+      override def reduce[X](node: Node)(f: (Either[A, B], Iterable[X]) => X): X =
         node.reduce[X]((a, x1, x2) => f(Left(a), x1 :: x2 :: Nil))(b => f(Right(b), Nil))
     }
 

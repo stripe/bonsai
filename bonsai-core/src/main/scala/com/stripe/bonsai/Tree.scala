@@ -42,11 +42,9 @@ class Tree[A](val bitset: IndexedBitSet, val labels: Vec[A]) {
   }
 
   def firstChild(node: NodeRef[A]): Option[NodeRef[A]] =
-    //mkNodeRef(2 * node.index + 1)
     mkNodeRef(Tree.firstChildIndex(node.index))
 
   def nextSibling(node: NodeRef[A]): Option[NodeRef[A]] =
-    //mkNodeRef(2 * node.index + 2)
     mkNodeRef(Tree.nextSiblingIndex(node.index))
 }
 

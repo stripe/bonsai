@@ -2,9 +2,7 @@ package com.stripe.bonsai
 
 trait FullBinaryTreeOps[T, BL, LL] extends TreeOps[T, Either[BL, LL]] {
 
-  type Label = Either[BL, LL]
-
-  override def reduce[A](node: Node)(f: (Label, Iterable[A]) => A): A =
+  override def reduce[A](node: Node)(f: (Either[BL, LL], Iterable[A]) => A): A =
     foldNode(node)({ (lc, rc, lbl) =>
       f(Left(lbl), reduce(lc)(f) :: reduce(rc)(f) :: Nil)
     }, lbl => f(Right(lbl), Nil))
