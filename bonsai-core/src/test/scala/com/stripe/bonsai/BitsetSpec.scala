@@ -18,7 +18,7 @@ class IndexedBitSetSpec extends WordSpec with Matchers with Checkers {
 
   implicit val arbitraryBitSetWithIndex: Arbitrary[BitSetWithIndex] =
     Arbitrary(for {
-      len <- arbitrary[Short].map(_.toInt)
+      len <- arbitrary[Short].map(_.toInt) if len >= 0
       vals <- Gen.listOfN(len, arbitrary[Boolean])
       i <- Gen.choose(0, len)
       bs = BitSet(vals.zipWithIndex.filter(_._1).map(_._2): _*)
