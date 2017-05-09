@@ -1,6 +1,6 @@
 organization in ThisBuild := "com.stripe"
-scalaVersion in ThisBuild := "2.12.1"
-crossScalaVersions in ThisBuild := Seq("2.10.6", "2.11.7", "2.12.1")
+scalaVersion in ThisBuild := "2.12.2"
+crossScalaVersions in ThisBuild := Seq("2.10.6", "2.11.11", "2.12.2")
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -17,11 +17,11 @@ val unpublished = Seq(publish := (), publishLocal := (), publishArtifact := fals
 lazy val root = project.
   in(file(".")).
   aggregate(bonsaiCore).
-  settings(unidocSettings: _*).
   settings(unpublished: _*)
 
 lazy val bonsaiCore = project.
-  in(file("bonsai-core"))
+  in(file("bonsai-core")).
+  enablePlugins(ScalaUnidocPlugin)
 
 lazy val bonsaiExample = project.
   in(file("bonsai-example")).
