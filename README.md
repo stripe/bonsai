@@ -212,7 +212,7 @@ Bonsai is published on sonatype. To use it in your SBT project, you can add the
 following to your `build.sbt`:
 
 ```scala
-libraryDependencies += "com.stripe" %% "bonsai" % "0.1.0"
+libraryDependencies += "com.stripe" %% "bonsai" % "0.2.1"
 ```
 
 # Miscellaneous
