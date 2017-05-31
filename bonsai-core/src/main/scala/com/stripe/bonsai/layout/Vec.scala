@@ -1,6 +1,7 @@
 package com.stripe.bonsai
 package layout
 
+import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable.Builder
 import scala.reflect.ClassTag
 import scala.util.hashing.MurmurHash3
@@ -80,6 +81,12 @@ object Vec {
     bldr ++= as
     bldr.result()
   }
+
+  def fromVector[A](values: Vector[A]): Vec[A] =
+    new Vec[A] {
+      def size: Int = values.size
+      def apply(i: Int): A = values(i)
+    }
 }
 
 trait VecBuilder[A] extends Builder[A, Vec[A]] {
@@ -92,4 +99,20 @@ trait VecBuilder[A] extends Builder[A, Vec[A]] {
 case class MappedVec[A, B](vec: Vec[A], f: A => B) extends Vec[B] {
   def size: Int = vec.size
   def apply(index: Int): B = f(vec(index))
+}
+
+case class ColVec[A, Repr](
+  offsets: Vec[Int],
+  values: Vec[A]
+)(implicit cbf: CanBuildFrom[Nothing, A, Repr]) extends Vec[Repr] {
+  def size: Int = offsets.size
+  def apply(i: Int): Repr = {
+    val start = offsets(i)
+    val end = if ((i + 1) == size) values.size else offsets(i + 1)
+    val bldr = cbf()
+    Iterator.range(start, end).foreach { i =>
+      bldr += values(i)
+    }
+    bldr.result()
+  }
 }
