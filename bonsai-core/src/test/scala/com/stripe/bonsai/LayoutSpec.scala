@@ -108,6 +108,11 @@ class LayoutSpec extends WordSpec with Matchers with Checkers {
   layoutCheck[Either[String, Long]]("Either[String, Long]")
   layoutCheck[(Short, String)]("(Short, String)")
   layoutCheck[(Short, Int, Double)]("(Short, Int, Double)")
+  layoutCheck[Set[Long]]("Set[Long]")
+  layoutCheck[Map[String, Long]]("Map[String, Long]")
+  layoutCheck[Vector[Long]]("Vector[Long]")
+  layoutCheck[Vector[Vector[Vector[String]]]]("Vector[Vector[Vector[String]]]")
+  layoutCheck[Map[Option[String], (Int, Set[Long])]]("Map[Option[String], (Int, Set[Long])]")
 
   case class Point(x: Double, y: Double)
   object Point extends {

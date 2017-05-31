@@ -43,6 +43,12 @@ object Layout {
   implicit def denseStringLayout: Layout[String] = DenseStringLayout
 
   implicit def optional[A](implicit layout: Layout[A]): Layout[Option[A]] = new OptionalLayout(layout)
+  implicit def setLayout[A](implicit layout: Layout[A], offsetsLayout: Layout[Int]): Layout[Set[A]] =
+    new ColLayout[A, Set[A]](layout, offsetsLayout)
+  implicit def mapLayout[K, V](implicit layout: Layout[(K, V)], offsetsLayout: Layout[Int]): Layout[Map[K, V]] =
+    new ColLayout[(K, V), Map[K, V]](layout, offsetsLayout)
+  implicit def vectorLayout[A](implicit layout: Layout[A], offsetsLayout: Layout[Int]): Layout[Vector[A]] =
+    new ColLayout[A, Vector[A]](layout, offsetsLayout)
 
   /**
    * Returns a data store that can store either A or B and requires only
