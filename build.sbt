@@ -16,7 +16,7 @@ val unpublished = Seq(publish := (), publishLocal := (), publishArtifact := fals
 
 lazy val root = project.
   in(file(".")).
-  aggregate(bonsaiCore).
+  aggregate(bonsaiCore, bonsaiExample, bonsaiBenchmark).
   settings(unpublished: _*)
 
 lazy val bonsaiCore = project.

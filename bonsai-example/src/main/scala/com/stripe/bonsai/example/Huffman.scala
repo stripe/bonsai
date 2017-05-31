@@ -35,23 +35,22 @@ object HuffmanExample extends App {
       queue.dequeue()._1
     }
 
-    implicit def huffmanTreeOps[A] = new TreeOps[HuffmanTree[A]] {
+    implicit def huffmanTreeOps[A] = new TreeOps[HuffmanTree[A], Option[A]] {
       type Node = HuffmanTree[A]
-      type Label = Option[A]
 
       def root(tree: HuffmanTree[A]): Option[HuffmanTree[A]] = Some(tree)
       def children(tree: HuffmanTree[A]): Iterable[HuffmanTree[A]] = tree match {
         case Branch(l, r) => l :: r :: Nil
         case _ => Nil
       }
-      def label(tree: HuffmanTree[A]): Label = tree match {
+      def label(tree: HuffmanTree[A]): Option[A] = tree match {
         case Leaf(value) => Some(value)
         case _ => None
       }
     }
   }
 
-  implicit class HuffmanTreeOps[T, A](tree: T)(implicit treeOps: TreeOps.Aux[T, Option[A]]) {
+  implicit class HuffmanTreeOps[T, A](tree: T)(implicit treeOps: TreeOps[T, Option[A]]) {
     import HuffmanTree.{ Branch, Leaf }
     import treeOps._
 
