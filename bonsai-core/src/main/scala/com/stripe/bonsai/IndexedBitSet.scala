@@ -85,7 +85,7 @@ final class IndexedBitSet(
    * `bitset(bitset.select(i)) == true`.
    *
    * @param i an integer in `[1, bitset.bitCount]`
-   * @returns an integer
+   * @return an integer
    */
   def select(i: Int): Int = {
     val blockOffset = search1(i)
@@ -381,7 +381,7 @@ object IndexedBitSet {
   }
 
   /**
-   * Read in a IndexedBitSet from the [[java.io.DataInput]].
+   * Read in a [[IndexedBitSet]] from the `java.io.DataInput`.
    *
    * @param in the input to read bytes from
    */
