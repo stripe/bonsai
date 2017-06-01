@@ -17,13 +17,13 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
     }
 
   def sumNode(n: ops.Node): Long =
-    ops.foldNode(n)((lc, rc, n) => n + sumNode(lc) + sumNode(rc), n => n)
+    ops.foldNode(n)((n, lc, rc) => n + sumNode(lc) + sumNode(rc), n => n)
 
   def nodeElems(n: ops.Node): Set[Int] =
-    ops.foldNode(n)((lc, rc, n) => Set(n) | nodeElems(lc) | nodeElems(rc), Set(_))
+    ops.foldNode(n)((n, lc, rc) => Set(n) | nodeElems(lc) | nodeElems(rc), Set(_))
 
   def minNode(n: ops.Node): Int =
-    ops.foldNode(n)((lc, rc, n) => (n min (minNode(lc) min minNode(rc))), n => n)
+    ops.foldNode(n)((n, lc, rc) => (n min (minNode(lc) min minNode(rc))), n => n)
 
   "write" should {
     "round-trip through read" in {
@@ -106,11 +106,7 @@ class FullBinaryTreeSpec extends WordSpec with Matchers with Checkers with Prope
       val genTree = branch(0, branch(2, leaf(1), leaf(3)), branch(6, leaf(5), leaf(0)))
       val bt1 = FullBinaryTree(genTree)
       val expected = List(1, 2, 3, 0, 5, 6, 0)
-      val unpackLabel: ops.Label => Int = _ match {
-        case Left(i)=> i
-        case Right(i) => i
-      }
-      ops.collectLabelsF(ops.root(bt1).get, unpackLabel) shouldBe expected.toSet
+      ops.collectLabelsF(ops.root(bt1).get)(_.merge) shouldBe expected.toSet
     }
   }
 }

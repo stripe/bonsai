@@ -66,6 +66,11 @@ trait TreeOps[Tree, Label] { ops =>
   def reduce[A](tree: Tree)(f: (Label, Iterable[A]) => A): Option[A] =
     root(tree).map(n => reduce(n)(f))
 
+  def collectLabelsF[A](node: Node)(f: Label => A): Set[A] =
+    reduce[Set[A]](node)((lbl, cs) => cs.foldLeft(Set(f(lbl)))(_ ++ _))
+
+  def collectLabels(node: Node): Set[Label] = collectLabelsF(node)(identity)
+
   implicit class OpsForTree(tree: Tree) {
     def root: Option[Node] = ops.root(tree)
     def reduce[A](f: (Label, Iterable[A]) => A): Option[A] = root.map(ops.reduce(_)(f))

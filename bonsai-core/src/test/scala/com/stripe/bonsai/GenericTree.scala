@@ -57,16 +57,16 @@ object GenericBinTree {
       def root(t: GenericBinTree[A]): Option[Node] =
         Some(t)
 
-      def foldNode[X](node: Node)(f: (Node, Node, A) => X, g: A => X): X =
+      def foldNode[X](node: Node)(f: (A, Node, Node) => X, g: A => X): X =
         node.children match {
-          case Some((lc, rc)) => f(lc, rc, node.label)
+          case Some((lc, rc)) => f(node.label, lc, rc)
           case None => g(node.label)
         }
     }
 
   def fromTree[A](tree: FullBinaryTree[A, A]): Option[GenericBinTree[A]] = {
     def construct(n: tree.NodeRef): GenericBinTree[A] =
-      n.fold({ (lc, rc, a) =>
+      n.fold({ (a, lc, rc) =>
         GenericBinTree.branch(a, construct(lc), construct(rc))
       }, GenericBinTree.leaf)
     tree.root.map(construct)

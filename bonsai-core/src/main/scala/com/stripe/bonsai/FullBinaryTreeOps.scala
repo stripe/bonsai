@@ -3,33 +3,25 @@ package com.stripe.bonsai
 trait FullBinaryTreeOps[T, BL, LL] extends TreeOps[T, Either[BL, LL]] {
 
   override def reduce[A](node: Node)(f: (Either[BL, LL], Iterable[A]) => A): A =
-    foldNode(node)({ (lc, rc, lbl) =>
+    foldNode(node)({ (lbl, lc, rc) =>
       f(Left(lbl), reduce(lc)(f) :: reduce(rc)(f) :: Nil)
     }, lbl => f(Right(lbl), Nil))
 
-  def foldNode[A](node: Node)(f: (Node, Node, BL) => A, g: LL => A): A
+  def foldNode[A](node: Node)(f: (BL, Node, Node) => A, g: LL => A): A
 
-  def reduceNode[A](node: Node)(f: (BL, Iterable[A]) => A)(g: LL => A): A =
-    foldNode(node)({ (lc, rc, lbl) =>
-      f(lbl, reduceNode(lc)(f)(g) :: reduceNode(rc)(f)(g) :: Nil)
-    }, g)
+  def reduceNode[A](node: Node)(f: (BL, A, A) => A, g: LL => A): A =
+    foldNode(node)((lbl, rc, lc) => f(lbl, reduceNode(lc)(f, g), reduceNode(rc)(f, g)), g)
 
   def label(node: Node): Either[BL, LL] =
-    foldNode(node)({ case (_, _, bl) => Left(bl) }, ll => Right(ll))
+    foldNode(node)((bl, _, _) => Left(bl), ll => Right(ll))
 
   def children(node: Node): Iterable[Node] =
-    foldNode(node)({ case (lc, rc, _) => lc :: rc :: Nil }, _ => Nil)
+    foldNode(node)((_, lc, rc) => lc :: rc :: Nil, _ => Nil)
 
-  def collectLabelsF[A](node: Node, f: Label => A): Set[A] =
-    foldNode(node)(
-      { case (lc, rc, label) => Set(f(Left(label))) | collectLabelsF(lc, f) | collectLabelsF(rc, f) },
-        ll => Set(f(Right(ll))))
+  def collectLeafLabelsF[A](node: Node)(f: LL => A): Set[A] =
+    reduceNode[Set[A]](node)((_, lc, rc) => lc ++ rc, ll => Set(f(ll)))
 
-  def collectLeafLabelsF[A](node: Node, f: LL => A): Set[A] =
-    foldNode(node)({case (lc, rc, _) => collectLeafLabelsF(lc, f) | collectLeafLabelsF(rc, f)}, ll => Set(f(ll)))
-
-  def collectLabels(node: Node): Set[Label] = collectLabelsF(node, identity)
-  def collectLeafLabels(node: Node): Set[LL] = collectLeafLabelsF(node, identity)
+  def collectLeafLabels(node: Node): Set[LL] = collectLeafLabelsF(node)(identity)
 }
 
 object FullBinaryTreeOps {
