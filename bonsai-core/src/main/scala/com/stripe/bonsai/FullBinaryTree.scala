@@ -88,7 +88,7 @@ class FullBinaryTree[A, B](
   }
 
   final def reduce[X](f: (A, X, X) => X)(g: B => X): Option[X] =
-    if (nonEmpty) Some(FullBinaryTree.reduceNode(this, 0)(f)(g)) else None
+    if (nonEmpty) Some(FullBinaryTree.reduceNode(this, 0)(f, g)) else None
 
   final def root: Option[NodeRef] =
     if (nonEmpty) Some(mkNodeRef(0)) else None
@@ -113,8 +113,8 @@ class FullBinaryTree[A, B](
   }
 
   sealed abstract class NodeRef {
-    def fold[R](f: (NodeRef, NodeRef, A) => R, g: B => R): R
-    def reduce[X](f: (A, X, X) => X)(g: B => X): X
+    def fold[R](f: (A, NodeRef, NodeRef) => R, g: B => R): R
+    def reduce[X](f: (A, X, X) => X, g: B => X): X
   }
 
   final def leafLabel(index: Int): B =
@@ -126,9 +126,9 @@ class FullBinaryTree[A, B](
   final class LeafRef private[FullBinaryTree] (index: Int) extends NodeRef {
     def label: B =
       tree.leafLabel(index)
-    def fold[R](f: (NodeRef, NodeRef, A) => R, g: B => R): R =
+    def fold[R](f: (A, NodeRef, NodeRef) => R, g: B => R): R =
       g(label)
-    def reduce[X](f: (A, X, X) => X)(g: B => X): X =
+    def reduce[X](f: (A, X, X) => X, g: B => X): X =
       g(label)
   }
 
@@ -139,10 +139,10 @@ class FullBinaryTree[A, B](
       tree.mkNodeRef(2 * index + 1)
     def rightChild: NodeRef =
       tree.mkNodeRef(2 * index + 2)
-    def fold[R](f: (NodeRef, NodeRef, A) => R, g: B => R): R =
-      f(leftChild, rightChild, label)
-    def reduce[X](f: (A, X, X) => X)(g: B => X): X =
-      FullBinaryTree.reduceNode(tree, index)(f)(g)
+    def fold[R](f: (A, NodeRef, NodeRef) => R, g: B => R): R =
+      f(label, leftChild, rightChild)
+    def reduce[X](f: (A, X, X) => X, g: B => X): X =
+      FullBinaryTree.reduceNode(tree, index)(f, g)
   }
 }
 
@@ -154,11 +154,11 @@ object FullBinaryTree {
       def root(t: FullBinaryTree[A, B]): Option[Node] =
         t.root
 
-      def foldNode[X](node: Node)(f: (Node, Node, A) => X, g: B => X): X =
+      def foldNode[X](node: Node)(f: (A, Node, Node) => X, g: B => X): X =
         node.fold(f, g)
 
       override def reduce[X](node: Node)(f: (Either[A, B], Iterable[X]) => X): X =
-        node.reduce[X]((a, x1, x2) => f(Left(a), x1 :: x2 :: Nil))(b => f(Right(b), Nil))
+        node.reduce[X]((a, x1, x2) => f(Left(a), x1 :: x2 :: Nil), b => f(Right(b), Nil))
     }
 
   /**
@@ -190,7 +190,7 @@ object FullBinaryTree {
             build(rest)
           case (Some(node), rest) =>
             bitsBldr += true
-            val (ol, or) = foldNode(node)({ (lc, rc, bl) =>
+            val (ol, or) = foldNode(node)({ (bl, lc, rc) =>
               leafBldr += false
               branchLabelBldr += bl
               (Some(lc), Some(rc))
@@ -214,13 +214,13 @@ object FullBinaryTree {
     }
   }
 
-  final def reduceNode[A, B, X](tree: FullBinaryTree[A, B], index: Int)(f: (A, X, X) => X)(g: B => X): X =
+  final def reduceNode[A, B, X](tree: FullBinaryTree[A, B], index: Int)(f: (A, X, X) => X, g: B => X): X =
     if (tree.isLeaf(index)) {
       g(tree.leafLabel(index))
     } else {
       val label = tree.branchLabel(index)
-      val x1 = reduceNode(tree, tree.bitset.rank(2 * index + 1) - 1)(f)(g)
-      val x2 = reduceNode(tree, tree.bitset.rank(2 * index + 2) - 1)(f)(g)
+      val x1 = reduceNode(tree, tree.bitset.rank(2 * index + 1) - 1)(f, g)
+      val x2 = reduceNode(tree, tree.bitset.rank(2 * index + 2) - 1)(f, g)
       f(label, x1, x2)
     }
 
