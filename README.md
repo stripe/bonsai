@@ -28,18 +28,15 @@ Bonsai encodes this notion of trees with the [TreeOps type class][treeops]. Here
 is a truncated version of the type class:
 
 ```scala
-trait TreeOps[T] {
+trait TreeOps[Tree, Label] {
 
   /** The type of the nodes in the tree. */
   type Node
 
-  /** The type of the label attached to each node. */
-  type Label
-
   /**
    * Returns the root node of the tree.
    */
-  def root(t: T): Option[Node]
+  def root(t: Tree): Option[Node]
 
   /**
    * Returns all the direct children of the given node. The order may or may
@@ -82,18 +79,19 @@ case class Leaf[+A](value: A) extends HuffmanTree[A]
 And here is how we would implement its `TreeOps` instance:
 
 ```scala
+import com.stripe.bonsai.TreeOps
+
 object HuffmanTree {
-  implicit def huffmanTreeOps[A]: TreeOps[HuffmanTree[A]] =
-    new TreeOps[HuffmanTree[A]] {
+  implicit def huffmanTreeOps[A]: TreeOps[HuffmanTree[A], Option[A]] =
+    new TreeOps[HuffmanTree[A], Option[A]] {
       type Node = HuffmanTree[A]
-      type Label = Option[A]
 
       def root(tree: HuffmanTree[A]): Option[HuffmanTree[A]] = Some(tree)
       def children(tree: HuffmanTree[A]): Iterable[HuffmanTree[A]] = tree match {
         case Branch(l, r) => l :: r :: Nil
         case _ => Nil
       }
-      def label(tree: HuffmanTree[A]): Label = tree match {
+      def label(tree: HuffmanTree[A]): Option[A] = tree match {
         case Leaf(value) => Some(value)
         case _ => None
       }
@@ -108,10 +106,10 @@ using it.
 
 For example, below we implement a `decode` operation as an implicit class using just `TreeOps`.
 
-*Note that `TreeOps.Aux[T, Option[A]]` is just a type alias for `TreeOps[T] { type Label = Option[A] }`*
-
 ```scala
-implicit class HuffmanTreeOps[T, A](tree: T)(implicit treeOps: TreeOps.Aux[T, Option[A]]) {
+import scala.collection.immutable.BitSet
+
+implicit class HuffmanTreeOps[T, A](tree: T)(implicit treeOps: TreeOps[T, Option[A]]) {
   // Importing treeOps gives us some useful methods on `tree`
   import treeOps._
 
@@ -176,6 +174,8 @@ much, if any, overhead.
 Here is an example of a `Layout` for some `Widget` type we made up:
 
 ```scala
+import com.stripe.bonsai.Layout
+
 sealed trait Widget
 case class Sprocket(radius: Int, weight: Option[Double]) extends Widget
 case class Doodad(length: Int, width: Int, weight: Option[Double]) extends Widget
@@ -212,7 +212,7 @@ Bonsai is published on sonatype. To use it in your SBT project, you can add the
 following to your `build.sbt`:
 
 ```scala
-libraryDependencies += "com.stripe" %% "bonsai" % "0.2.1"
+libraryDependencies += "com.stripe" %% "bonsai" % "0.3.0"
 ```
 
 # Miscellaneous
