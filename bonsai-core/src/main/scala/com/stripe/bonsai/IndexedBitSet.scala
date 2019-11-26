@@ -24,7 +24,7 @@ final class IndexedBitSet(
   val length: Int,
   val level2Start: Int,
   val rawBitsStart: Int
-) {
+) extends java.io.Serializable {
   import IndexedBitSet.{rankWord, selectWord, ceilDiv}
 
   /**
